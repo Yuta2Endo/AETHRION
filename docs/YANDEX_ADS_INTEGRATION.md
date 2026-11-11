@@ -2,7 +2,7 @@
 
 **Provider:** Yandex Mobile Ads (Android SDK) — owner-selected  
 **Initial format:** **Rewarded ads** (user-initiated)  
-**Status:** client architecture/service and plugin contract implemented; **native SDK/device verification blocked**
+**Status:** client architecture/service implemented; **native Kotlin Capacitor plugin and SDK (`7.18.2`) integrated/built and available on device (Stage 10.1, local)**. Live rewarded ad load/show/verified reward E2E remains **blocked** without configured test/production ad unit IDs and inventory.
 
 ## 1. Official references
 

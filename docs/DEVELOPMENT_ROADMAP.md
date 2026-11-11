@@ -125,26 +125,22 @@
 
 ## Completed with blockers — Stage 10: Android Native Integration & Monetization
 
-**Owner-selected monetization providers (preserved):**
-- **Advertising:** Yandex Mobile Ads (rewarded-first, user-initiated, verified-completion-only rewards).
-- **Purchases:** Robokassa (server-authoritative creation/verification, ResultURL-confirmed, idempotent entitlements, no client secrets).
+**Owner-selected monetization providers (preserved):** Yandex Mobile Ads (advertising) and Robokassa (purchases, server-authoritative). See `docs/STAGE_10_FINAL_REPORT.md`.
 
-**Implemented in-repo (architectural/client/reference scope):**
-- Capacitor/platform audit and configuration hardening (appId `com.aethrion.app`, `webDir dist`, `https` scheme) and client-safe env/config (`.env.example`) with no secrets.
-- Platform/lifecycle abstractions: Capacitor/native detection, lifecycle manager (visibility + Capacitor App hooks when available), Android back-button handling integration, safe background/foreground behavior without duplicate loops.
-- Mobile rendering profile: configurable quality profile (`auto/low/medium/high`) with DPR/AA heuristics and existing WebGL fallback.
-- Monetization architecture: distribution/payment policy modes and safe gating, Yandex rewarded-ads typed service (init/load/show states, verified completion, idempotent reward granting, dev/prod config validation) with Capacitor plugin bridge contract.
-- Payments architecture: typed payment state machine/client contracts, policy-gated payment client, and **reference server-authoritative Robokassa module** (`server/src/payments/`) implementing signature generation/verification, notification validation (amount/invoice), and idempotent ResultURL processing/entitlement granting logic (automated-tested).
-- Automated tests added for platform config, distribution policy, rewarded-ad lifecycle/idempotency, payment transitions, and Robokassa verification/idempotency. Full regression gates executed (see Stage 10 report).
-- Documentation: `docs/ANDROID_ARCHITECTURE.md`, `docs/ANDROID_BUILD_GUIDE.md`, `docs/MONETIZATION_ARCHITECTURE.md`, `docs/ROBOKASSA_INTEGRATION.md`, `docs/YANDEX_ADS_INTEGRATION.md`, `docs/STAGE_10_FINAL_REPORT.md`, and roadmap/architecture/security updates.
+## Completed with blockers — Stage 10.1: Android Build Stabilization, Native Source Preservation & Integration Verification
 
-**Documented blockers / not verified (external or environment):**
-- No native `android/` project/toolchain/SDK/device/emulator in this environment: `cap add/sync android`, Gradle debug/release builds, APK/AAB signing/device tests **not executed**.
-- Yandex Mobile Ads: no native Android SDK/plugin build on device and no real/production ad unit IDs or account configuration; demo/production IDs not fabricated. Device behavior not verified.
-- Robokassa: no deployable/authenticated backend, no merchant credentials, no live/test endpoint deployment — **server-authoritative processing implemented as reference logic/contract and tests only**; production integration blocked pending secure backend and credentials.
-- Google Play distribution/payment policy: no Play Console enrollment/eligibility/approval verified. EEA alternative billing and other Play modes are **safely gated/architecturally prepared**, not claimed approved or enabled.
+**Implemented/verified (local environment):**
+- Android project source/config tracked in Git with safe ignores (`local.properties`, build outputs, signing, generated/copied assets, cordova plugins kept regenerable); custom native code preserved across `npx cap sync android`.
+- Local repeatable Android debug workflow executed (Node 26/npm 11, Capacitor 8.6.0, Android SDK `E:\ASGG`, JDK 21, Gradle 8.14.3/AGP 8.13.0/Kotlin 2.0.21): web build + cap sync + `gradlew.bat assembleDebug` **PASS**. APK `android/app/build/outputs/apk/debug/app-debug.apk` (16,170,741 bytes, 2026-11-12 06:50:16) installed/launched on device `10AFAB1AD60032K`.
+- Yandex Mobile Ads native Capacitor plugin (Kotlin, SDK `7.18.2`) built, registered, and available on device; plugin hardened (async load handling, verified-reward-only completion path, in-progress/stale-callback guards). `window.Capacitor.Plugins.YandexAds` confirmed via WebView/CDP.
+- Runnable server backend with SQLite (`node:sqlite`, `--experimental-sqlite`) hardened (constant-time signature comparison, strict validation/idempotent ResultURL handling, explicit auth-stub isolation/gating, no client secrets). Health endpoint operational locally.
+- Core automated gates passed: `npm run typecheck`, `npm run lint`, `npm test` (39 files, 527 tests), `npm run build`.
+- Documentation/reporting updated: `docs/STAGE_10_1_FINAL_REPORT.md` and targeted Android/monetization/build docs.
 
-Google Play payment policy requirements are respected/documented without presenting Google Play Billing as the owner’s selected primary provider.
+**Remaining blockers (external/configuration):**
+- No configured Yandex test/production ad unit IDs and no verified device E2E for rewarded load/show/verified reward.
+- No real Robokassa merchant credentials, no real authenticated identity integration, no public HTTPS `ResultURL`, and no end-to-end test-mode payment on a device-reachable backend.
+- `node:sqlite` experimental/operational production readiness and clean-clone build not proven. Release signing/AAB/publishing not performed. No Stage 11 work started.
 
 ---
 

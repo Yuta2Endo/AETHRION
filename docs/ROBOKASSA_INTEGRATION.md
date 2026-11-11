@@ -2,7 +2,7 @@
 
 **Provider:** Robokassa (owner-selected)  
 **Architecture:** **server-authoritative only** (mandatory)  
-**Status:** reference implementation + tests in-repo; **deployable backend/credentials/live integration blocked**
+**Status:** reference implementation/tests plus runnable local backend with SQLite and hardened server-side ResultURL processing (Stage 10.1). **Live deployable integration remains blocked**: no real merchant credentials, no real authenticated identity integration, no public HTTPS `ResultURL`, no end-to-end test-mode/device verification.
 
 ## 1. Authoritative flow
 
