@@ -41,6 +41,12 @@ export interface SalesContext {
   marketReach: number;
   /** Simulated time the sale is recorded at. */
   simTimeMs: number;
+  /**
+   * The market demand modifier of the active global events (Stage 06).
+   *
+   * Optional: when it is absent the sales behave exactly as in Stage 04.
+   */
+  eventMarketDemand?: number;
 }
 
 /**
@@ -70,8 +76,13 @@ export function getProductDemand(
 
   const activityFactor = clamp(context.marketActivityIndex / 100, 0, 2);
   const reachFactor = context.marketReach > 0 ? context.marketReach : 1;
+  // The active global events may raise or lower the demand of the market.
+  const eventFactor = clamp(context.eventMarketDemand ?? 1, 0.5, 2);
 
-  return Math.max(0, baseDemand * activityFactor * qualityFactor * priceFactor * reachFactor);
+  return Math.max(
+    0,
+    baseDemand * activityFactor * qualityFactor * priceFactor * reachFactor * eventFactor,
+  );
 }
 
 /**

@@ -142,6 +142,19 @@ export interface CityContext {
   deltaMs: number;
   /** Simulated time the tick is recorded at. */
   simTimeMs: number;
+  /**
+   * The city pressures of the active global events (Stage 06).
+   *
+   * Optional: when it is absent the city behaves exactly as in Stage 05.
+   */
+  eventCityPressure?: {
+    /** Additional infrastructure pressure, 0..1. */
+    infrastructure: number;
+    /** Additional environmental pressure, 0..1. */
+    environment: number;
+    /** Multiplier on the commercial activity, 0.5..2. */
+    commercialActivity: number;
+  };
 }
 
 /**
@@ -336,7 +349,10 @@ function isFinished(building: CityBuilding): boolean {
  * The capacity is the municipal baseline plus the capacity of the finished
  * buildings; the demand is the demand of the finished buildings.
  */
-export function computeInfrastructureBalance(city: City): InfrastructureBalance {
+export function computeInfrastructureBalance(
+  city: City,
+  infrastructurePressure = 0,
+): InfrastructureBalance {
   const capacity: InfrastructureCapacity = { ...city.baselineInfrastructure };
   const demand: InfrastructureCapacity = createEmptyCapacity();
 
@@ -352,6 +368,16 @@ export function computeInfrastructureBalance(city: City): InfrastructureBalance 
     demand.water += required.water;
     demand.logistics += required.logistics;
     demand.publicServices += required.publicServices;
+  }
+
+  // The active global events may press on the infrastructure of the city:
+  // the same networks have to serve a larger load.
+  const pressure = clamp(infrastructurePressure, 0, 1);
+  if (pressure > 0) {
+    demand.electricity *= 1 + pressure;
+    demand.water *= 1 + pressure;
+    demand.logistics *= 1 + pressure;
+    demand.publicServices *= 1 + pressure;
   }
 
   const shortages = createEmptyCapacity();
@@ -1236,8 +1262,10 @@ export function advanceCity(state: CityState, context: CityContext): CityState {
   });
 
   // 2. The infrastructure balance of the city.
+  const eventPressure = context.eventCityPressure;
+  const infrastructurePressure = clamp(eventPressure?.infrastructure ?? 0, 0, 1);
   const withProgress: City = { ...city, buildings: progressed };
-  const balance = computeInfrastructureBalance(withProgress);
+  const balance = computeInfrastructureBalance(withProgress, infrastructurePressure);
 
   // 3. The operational status of every finished building.
   const reconciled = progressed.map((building) => reconcileBuildingStatus(building, balance));
@@ -1271,14 +1299,20 @@ export function advanceCity(state: CityState, context: CityContext): CityState {
 
   // 6. The urban indicators.
   const employmentRate = population > 0 ? employment / population : 0;
-  const commercialIndex = clamp(statistics.commercialActivity, 0, 100);
+  const commercialMultiplier = clamp(eventPressure?.commercialActivity ?? 1, 0.5, 2);
+  const commercialIndex = clamp(statistics.commercialActivity * commercialMultiplier, 0, 100);
 
   let environmentImpact = 0;
   for (const building of reconciled) {
     if (building.status !== 'operational') continue;
     environmentImpact += building.effects.environmentImpact;
   }
-  const environmentTarget = clamp(CITY_RULES.baseEnvironment + environmentImpact, 0, 100);
+  const environmentPressure = clamp(eventPressure?.environment ?? 0, 0, 1);
+  const environmentTarget = clamp(
+    CITY_RULES.baseEnvironment + environmentImpact - environmentPressure * 40,
+    0,
+    100,
+  );
 
   const publicServiceCapacity =
     city.baselineInfrastructure.publicServices +

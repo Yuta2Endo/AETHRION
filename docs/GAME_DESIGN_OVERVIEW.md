@@ -1,10 +1,10 @@
 # AETHRION — Game Design Overview
 
 **Project:** AETHRION  
-**Stage:** 05 — City Engine  
-**Status:** World, Economy, Corporation, Employee, Technology, Product, Resource, Production, Market and City systems implemented; the remaining gameplay systems stay in later stages.
+**Stage:** 06 — Events & Competitor AI Engines  
+**Status:** World, Economy, Corporation, Employee, Technology, Product, Resource, Production, Market, City, Events and Competitor systems implemented; the remaining gameplay systems stay in later stages.
 
-> The exact rules of the Stage 04 and Stage 05 engines are documented in `docs/ENGINE_RULES.md`.
+> The exact rules of the Stage 04, Stage 05 and Stage 06 engines are documented in `docs/ENGINE_RULES.md`.
 
 ## 1. Genre & Vision
 
@@ -22,7 +22,7 @@ The player starts with a small technology corporation and builds a global empire
 - Manage supply chains *(Stage 04 — baseline: resources, reservations, production)*
 - Develop cities *(Stage 05 — implemented)*
 - Influence global markets *(Stage 02 baseline, Stage 04 product sales, Stage 05 urban demand)*
-- Compete against AI corporations *(Stage 06)*
+- Compete against AI corporations *(Stage 06 — implemented)*
 - Expand across world regions *(Stage 02 baseline)*
 - Shape the future of civilization
 
@@ -44,8 +44,8 @@ The player starts with a small technology corporation and builds a global empire
 | Production Engine | Facilities, production orders, manufacturing | **Implemented (Stage 04)** |
 | Market Engine | Listings, demand, sales, corporate market signal | **Implemented (Stage 04)** |
 | City Engine | City, districts, land, buildings, infrastructure, population | **Implemented (Stage 05)** |
-| Events Engine | World events, news, scenario triggers | Typed interface only |
-| Competitor AI Engine | AI corporations, competitive behavior | Typed interface only |
+| Events Engine | Global events, their effects, the event history and the news | **Implemented (Stage 06)** |
+| Competitor AI Engine | AI corporations, their decisions, finances and market presence | **Implemented (Stage 06)** |
 | Save & Archive Engine | Persistence (IndexedDB) | Stage 08 |
 
 ## 4. World Rules (Stage 02 baseline)
@@ -251,3 +251,68 @@ Land Acquisition → Construction → Infrastructure → Housing → Population
   running buildings reduces the corporate net profit, and the infrastructure must keep up.
 - The Stage 04 Production Engine remains the only authority for manufacturing — the city never
   creates a production order.
+
+## 12. The Living World (Stage 06)
+
+Stage 06 makes the world **alive**. Global events change the conditions of the sector, three
+independent AI corporations react to those conditions and compete for the same commodities, and
+the player has to live with the consequences.
+
+```
+World Conditions → Global Events → Competitor Decisions → Market Changes
+                → Player Consequences → Strategic Response
+```
+
+### 12.1 The global events
+
+Seventeen events in six categories — economic, technology, industrial, energy, environment and
+geopolitical. A recession empties the order books, a scientific breakthrough accelerates every
+research programme, an energy crisis multiplies the operating costs and presses on the
+infrastructure of the city, a supply chain disruption slows the factories down.
+
+Every event:
+
+- has a **bounded effect** — a multiplier between 0.5 and 2 or a pressure between 0 and 1;
+- **stacks** with the other active events, multiplicatively and with a documented clamp;
+- **expires exactly once** and stops influencing the simulation;
+- is scheduled **deterministically** — the same run always produces the same sequence.
+
+Seven events offer the player a **real choice** with a real cost and a measurable result:
+invest in energy efficiency, stockpile materials during a shortage, cut the operating expenses
+during a recession, fund compliance during a regulation, localise the supply chain during a
+trade war.
+
+### 12.2 The AI corporations
+
+| Corporation | Focus | Strategy | Personality |
+|-------------|-------|----------|-------------|
+| NEXORA INDUSTRIES | Computing and frontier technology | Technology leadership | Innovative |
+| VANTEX GLOBAL | Industry, materials and logistics | Operational efficiency | Conservative |
+| HELION DYNAMICS | Energy, infrastructure and advanced materials | Resource control | Defensive |
+
+Each of them has its **own capital**, its **own objectives**, its **own research**, its **own
+market presence** and its **own relationship with the player**. They read the world, they
+compete for the same commodities and they publish their decisions in the news.
+
+The AI is deterministic, affordable and can fail: a corporation without a market presence earns
+nothing, a recession drives it into the defensive and a badly managed corporation runs out of
+money.
+
+### 12.3 The competitive market
+
+The AI is a **producer** in the commodity market — its bounded production capacity raises the
+supply by at most 12 % and its demand by at most 12 %. A corporation that undercuts the market
+adds more effective supply than one that pushes the prices up. The city remains a **consumer**.
+
+The player sees the pressure per commodity category in the market section.
+
+### Design guarantees
+
+- **No randomness in the simulation.** The event sequence comes from a seeded generator whose
+  state lives in the simulation state; the AI decides with explicit weights.
+- **No second economy, market or ledger.** The AI reports its pressure through a typed
+  contract; the Economy Engine applies it.
+- **The absence of a signal preserves the previous behaviour exactly** — the same rule that
+  already governed the corporate and the city signals.
+- **The AI never touches the player finances.** The player may only inspect a corporation.
+- **The news is never invented** — every headline refers to a real simulation event.

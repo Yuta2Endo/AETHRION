@@ -1,10 +1,10 @@
 # AETHRION — Technical Architecture
 
 **Project:** AETHRION  
-**Stage:** 05 — City Engine
+**Stage:** 06 — Events & Competitor AI Engines
 
-> The exact rules of the Stage 04 and Stage 05 engines are documented in `docs/ENGINE_RULES.md`.
-> This document describes the architecture and the layering.
+> The exact rules of the Stage 04, Stage 05 and Stage 06 engines are documented in
+> `docs/ENGINE_RULES.md`. This document describes the architecture and the layering.
 
 ## 1. Layered Architecture
 
@@ -52,6 +52,8 @@ Dependency direction is strictly downward. The simulation never imports React; t
 | **Production Engine** | Facilities, production orders, manufacturing | Core, Product Engine, Contracts |
 | **Market Engine** | Listings, demand, sales, corporate market signal | Core, Product Engine, Contracts |
 | **City Engine** | City, districts, land, buildings, infrastructure, population | Core, Contracts |
+| **Events Engine** | Global events, their effects, the event history and the news | Core, Contracts |
+| **Competitor AI Engine** | AI corporations, their decisions, their finances and their market presence | Core, Contracts, Technology Engine |
 | Events Engine | World events, news | Core |
 | Competitor AI Engine | AI corporations | Core |
 | Save & Archive | IndexedDB persistence | idb |
@@ -61,7 +63,9 @@ Dependency direction is strictly downward. The simulation never imports React; t
 
 ## 3. Cross-Engine Contracts (`src/simulation/contracts.ts`)
 
-Plain, dependency-free types shared by two or more engines: the base currency, the corporate department model and the two integration boundaries — the `CorporateMarketSignal` (Stage 04) and the `CityMarketSignal` (Stage 05). This module holds **no engine logic** — it only provides the vocabulary that lets the engines talk to each other without importing each other.
+Plain, dependency-free types shared by two or more engines: the base currency, the corporate department model and the **three** integration boundaries — the `CorporateMarketSignal` (Stage 04), the `CityMarketSignal` (Stage 05) and the `CompetitorMarketSignal` (Stage 06). The module also owns the shared vocabulary of the commodity categories, the news categories and the event modifier snapshot.
+
+This module holds **no engine logic** — it only provides the vocabulary that lets the engines talk to each other without importing each other.
 
 ## 4. Game Core Engine (`src/game/engine/`)
 
@@ -128,6 +132,8 @@ Two distinct Zustand stores:
 | `production` | Production Engine | Facilities and production orders |
 | `market` | Market Engine | Market listings and their sales results |
 | `city` | City Engine | The city, its districts, its land and its buildings |
+| `events` | Events Engine | The global events, their history and the news feed |
+| `competitors` | Competitor AI Engine | The AI corporations |
 | `simulation` | Game Core | Status, tick, simulated time, date, speed |
 
 The game store contains **no domain logic** — it stores the results produced by the domain modules and exposes controlled update actions. It does **not** use the zustand `persist` middleware; persistent storage is an IndexedDB concern reserved for Stage 08.
@@ -150,6 +156,8 @@ Stage 04 split the single `commands.ts` file into a focused module per domain �
 | `resourceCommands.ts` | `purchaseResource` |
 | `productionCommands.ts` | `createFacility`, `assignFacilityEmployees`, `startProduction`, `cancelProduction` |
 | `cityCommands.ts` | `purchaseLand`, `sellLand`, `startConstruction`, `cancelConstruction`, `assignBuilding`, `unassignBuilding`, `suspendBuilding`, `resumeBuilding`, `demolishBuilding`, `renameCity` |
+| `eventCommands.ts` | `respondToEvent`, `markNewsRead`, `getAvailableResponses` |
+| `competitorCommands.ts` | `getCompetitor` (read-only inspection) |
 | `shared.ts` | `failure`, `requireCorporation`, `chargeCorporation`, `storeCorporation`, `validateEmployeeAssignment` |
 | `index.ts` | The aggregated `commands` object |
 
@@ -256,34 +264,44 @@ Validated in order: profession → department → department availability at the
 
 ## 11. Simulation Integration
 
-`src/game/simulationRunner.ts` registers ten systems in a fixed order:
+`src/game/simulationRunner.ts` registers twelve systems in a fixed order:
 
 ```
 1. Game Clock        — advances simulated time (engine-owned, before the systems)
 2. World Engine      — order 10
-3. City Engine       — order 15   ← produces the city market signal
-4. Economy Engine    — order 20   ← consumes the world of step 2 and the two market signals
-5. Employee Engine   — order 30   ← develops the workforce
-6. Technology Engine — order 40   ← research uses the workforce of step 5
-7. Product Engine    — order 50   ← development uses the unlocked technologies
-8. Resource Engine   — order 60   ← resource bookkeeping
-9. Production Engine — order 70   ← consumes the reserved resources
-10. Market Engine    — order 80   ← sells the finished goods
-11. Corporation Engine— order 90
-      ├─ accrues revenue and operating costs from the workforce productivity
-      │  and from the operating cost of the running city buildings
+3. Events Engine     — order 11   ← schedules the global events, expires them
+4. City Engine       — order 15   ← consumes the event pressures
+5. Economy Engine    — order 20   ← consumes the world and the three market signals
+6. Employee Engine   — order 30   ← develops the workforce
+7. Technology Engine — order 40   ← research uses the workforce of step 6
+8. Product Engine    — order 50   ← development uses the unlocked technologies
+9. Resource Engine   — order 60   ← resource bookkeeping
+10. Production Engine — order 70  ← consumes the reserved resources
+11. Market Engine    — order 80   ← sells the finished goods
+12. Competitor Engine — order 85  ← the AI decisions and the competitive activity
+13. Corporation Engine— order 90
+      ├─ accrues revenue and operating costs from the workforce productivity,
+      │  from the operating cost of the running city buildings and from the
+      │  operating cost modifier of the active global events
       ├─ processes the payroll of the current period (at most once)
       └─ updates reputation, tier and status
 ```
 
 The Stage 02 **world → economy** order is preserved. The Stage 05 dependency is **city →
 economy**: the City Engine runs before the Economy Engine, so the economy consumes the city
-market signal of the **same** tick. The workforce developed in the same tick feeds the corporation
-in that tick — verified by an integration test that recomputes the expected revenue independently.
-The full chain **research → unlock → development → resource purchase → production → inventory →
-market sale → revenue** is covered by an end-to-end integration test, and the chain
-**land → construction → housing → population → industry → economy → finances** is covered by the
-Stage 05 integration test.
+market signal of the **same** tick. The Stage 06 dependencies are **events → every affected
+engine** (the Events Engine runs first, so the modifiers apply in the same tick) and
+**market → competitors** (the AI reacts to the market of the tick it is in; its own signal
+reaches the economy with the next tick, so nothing that was already calculated is ever changed
+retroactively).
+
+The workforce developed in the same tick feeds the corporation in that tick — verified by an
+integration test that recomputes the expected revenue independently. The full chain
+**research → unlock → development → resource purchase → production → inventory → market sale →
+revenue** is covered by an end-to-end integration test, the chain **land → construction →
+housing → population → industry → economy → finances** by the Stage 05 integration test and the
+chain **event → effect → economy → AI decision → market activity → player response → expiry**
+by the Stage 06 integration test.
 
 The exact rules of every engine are documented in `docs/ENGINE_RULES.md`.
 
@@ -292,6 +310,10 @@ The exact rules of every engine are documented in `docs/ENGINE_RULES.md`.
 The Corporation Engine produces a `CorporateMarketSignal` (demand pressure, supply pressure, productivity) and the Economy Engine **now consumes it**: the signal modulates the commodity supply and demand by up to 15 %. Without a signal both factors are exactly 1 and the market behaves exactly as in Stage 02 — this is covered by a test.
 
 The City Engine produces a second, independent boundary — the `CityMarketSignal`. A growing city consumes more commodities, so the signal raises the commodity demand by at most 15 % and raises the saturation ceiling of the demand by at most 25 %. The city never adds supply to the market. The signal is only produced while the city runs something, so an untouched city leaves the economy exactly as it was — this is covered by a test as well.
+
+The Competitor AI Engine produces the third boundary — the `CompetitorMarketSignal`. The AI is a **producer**: its bounded production capacity adds up to 12 % to the commodity supply, its demand up to 12 %. A corporation that undercuts the market adds more effective supply than one that pushes the prices up. The signal is only produced while there is at least one corporation.
+
+Every one of the three boundaries follows the same rule: **the absence of the signal preserves the previous behaviour exactly**.
 
 ## 13. City Engine (`src/simulation/city/`)
 
@@ -326,36 +348,80 @@ it: every identifier comes from a deterministic sequence.
   contributes to the *city* industrial capacity, which is reported through the city signal — it
   never creates a production order.
 
-## 14. Event Communication
+## 14. Events Engine (`src/simulation/events/`)
+
+| File | Responsibility |
+|------|----------------|
+| `eventState.ts` | The event catalogue, the active instances, the news and the validation |
+| `eventRules.ts` | Scheduling, activation, expiration, the effect aggregation and the news |
+| `index.ts` | The public surface of the module |
+
+### Design
+
+- The catalogue is a **data driven table** of seventeen definitions. An event is a plain,
+  serialisable record — there is not a single function inside the data.
+- The effects are **typed and bounded**: every multiplier is clamped to 0.5 … 2 and every
+  pressure to 0 … 1. Overlapping events stack multiplicatively and the aggregate is clamped
+  again, so an event can never produce an unbounded effect.
+- The engine publishes an `EventEnvironmentModifiers` snapshot. The affected engines read
+  **only** the modifier they care for, and every one of them clamps it again.
+- The random sequence comes from a **seeded xorshift generator** whose state lives in the
+  events state — the whole event sequence of a run is reproducible and the state stays
+  serialisable.
+- The engine owns the **news feed** (40 items). Every item refers to a real simulation event.
+
+## 15. Competitor AI Engine (`src/simulation/competitors/`)
+
+| File | Responsibility |
+|------|----------------|
+| `competitorState.ts` | The AI corporations, the personality profiles, the financial model and the validation |
+| `competitorRules.ts` | The decision engine, the research, the financial accrual and the market signal |
+| `index.ts` | The public surface of the module |
+
+### Design
+
+- The corporations and the **five personality profiles** are tables. A personality is a weight
+  profile — it never introduces random behaviour.
+- The AI has its **own compact financial model**. It has no employees, no payroll and no
+  ledger, and it never touches the ledger of the player corporation.
+- The decisions are **deterministic**: the objectives are evaluated in a fixed order at a
+  bounded interval, the tie is always broken the same way and the action type is blocked by a
+  cooldown.
+- The AI reuses the **existing Stage 04 technology tree** — the same definitions, the same
+  prerequisites and the same durations. There is no second tree.
+- The AI reports its pressure through the `CompetitorMarketSignal`; it never touches the market
+  directly and its influence is bounded.
+
+## 16. Event Communication
 `src/core/events/eventBus.ts` — a typed event bus decoupling modules. Simulation events are mirrored there for app-level observers, while the engine exposes direct callbacks (`onTick`, `onStatusChange`) for internal wiring — the simulation itself never depends on the bus.
 
-## 15. Error Handling
+## 17. Error Handling
 
 `src/core/error/errorHandler.ts` — centralized error handler. Installs global `window.onerror` and `unhandledrejection` handlers, logs via the logger, emits `app:error` events and exposes a `tryCatch` Result helper. `AppError` is defined once in `src/core/types/index.ts` and re-exported.
 
 Domain engines reject invalid input safely: an invalid state or context is logged and the incoming state is returned **unchanged**, so a corrupted state can never propagate through the simulation.
 
-## 16. Logging
+## 18. Logging
 
 `src/core/logging/logger.ts` — centralized logger respecting `VITE_LOG_LEVEL`. Prefix `AETHRION`.
 
-## 17. Environment Configuration
+## 19. Environment Configuration
 
 `src/core/config/env.ts` — typed access to Vite env variables. No direct `import.meta.env` reads elsewhere.
 
-## 18. Web Workers
+## 20. Web Workers
 
 `src/workers/` is reserved for Stage 07. Worker integration is deliberately **not** implemented in Stage 03.
 
-## 19. Persistence
+## 21. Persistence
 
 `src/services/persistence/indexedDB.ts` — IndexedDB (via `idb`). Wired up in Stage 08.
 
-## 20. TypeScript Configuration
+## 22. TypeScript Configuration
 
 Strict mode enabled (`strict: true`, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`, `isolatedModules`). Path alias `@/` → `./src`.
 
-## 21. Dependency Rules
+## 23. Dependency Rules
 
 - Avoid circular dependencies.
 - Game simulation independent from React.

@@ -37,6 +37,12 @@ export interface ProductionContext {
   deltaMs: number;
   /** Simulated time the production is recorded at. */
   simTimeMs: number;
+  /**
+   * The production efficiency modifier of the active global events (Stage 06).
+   *
+   * Optional: when it is absent the production behaves exactly as in Stage 04.
+   */
+  eventEfficiency?: number;
 }
 
 function failure<T>(code: string, message: string): Result<T, AppError> {
@@ -434,7 +440,13 @@ export function advanceProduction(
     );
     if (!isFiniteNumber(durationMs) || durationMs <= 0) return order;
 
-    const progress = clamp(roundTo(order.progress + context.deltaMs / durationMs, 6), 0, 1);
+    // The active global events may slow the lines down or speed them up.
+    const eventEfficiency = clamp(context.eventEfficiency ?? 1, 0.5, 2);
+    const progress = clamp(
+      roundTo(order.progress + (context.deltaMs / durationMs) * eventEfficiency, 6),
+      0,
+      1,
+    );
 
     if (progress < 1) {
       return { ...order, progress, status: 'running' as ProductionOrderStatus };

@@ -155,6 +155,7 @@ describe('Stage 05 — the city gameplay chain', () => {
 
     expect(names).toEqual([
       'world',
+      'events',
       'city',
       'economy',
       'employees',
@@ -163,6 +164,7 @@ describe('Stage 05 — the city gameplay chain', () => {
       'resources',
       'production',
       'market',
+      'competitors',
       'corporation',
     ]);
 

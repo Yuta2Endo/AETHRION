@@ -31,9 +31,11 @@ describe('Stage 03 — simulation integration', () => {
 
     // Stage 04 inserted the technology, product, resource, production and
     // market systems between the employees and the corporation; Stage 05
-    // inserted the city system between the world and the economy.
+    // inserted the city system between the world and the economy; Stage 06
+    // added the events and the competitors.
     expect(systems.map((system) => system.name)).toEqual([
       'world',
+      'events',
       'city',
       'economy',
       'employees',
@@ -42,6 +44,7 @@ describe('Stage 03 — simulation integration', () => {
       'resources',
       'production',
       'market',
+      'competitors',
       'corporation',
     ]);
     expect(SIMULATION_SYSTEM_ORDER.employees).toBeGreaterThan(SIMULATION_SYSTEM_ORDER.economy);

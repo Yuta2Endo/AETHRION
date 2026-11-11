@@ -6,12 +6,19 @@
  */
 
 import { isFiniteNumber } from '@/core/utils';
+import type { CommodityCategory } from '@/simulation/contracts';
 
 export type CurrencyId = string;
 export type CommodityId = string;
 
-/** Category of a traded commodity. */
-export type CommodityCategory = 'compute' | 'energy' | 'materials' | 'logistics';
+/**
+ * The category of a traded commodity.
+ *
+ * The union lives in the shared contracts module — the Economy, Events and
+ * Competitor engines all speak about commodity categories. It is re-exported
+ * here so that the existing imports keep working.
+ */
+export type { CommodityCategory };
 
 export interface Currency {
   id: CurrencyId;

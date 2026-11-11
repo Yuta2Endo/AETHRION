@@ -1,12 +1,13 @@
 # AETHRION — Engine Rules
 
 **Project:** AETHRION  
-**Stage:** 05 — City Engine  
-**Scope:** focused documentation of the Stage 04 and Stage 05 gameplay engines.
+**Stage:** 06 — Events & Competitor AI Engines  
+**Scope:** focused documentation of the Stage 04, Stage 05 and Stage 06 gameplay engines.
 
 This document is the companion of `docs/TECHNICAL_ARCHITECTURE.md` (architecture and layering)
 and `docs/GAME_DESIGN_OVERVIEW.md` (player-facing gameplay). Here are the exact rules of the
-new engines.
+new engines. The catalogue of the global events lives in `docs/EVENT_SYSTEM.md`, the details of
+the AI in `docs/COMPETITOR_AI.md`.
 
 ---
 
@@ -656,28 +657,288 @@ behaves exactly as in Stage 04 — this is covered by a test.
 ```
 1. Game Clock         — advances the simulated time (engine owned, before the systems)
 2. World Engine       — order 10
-3. City Engine        — order 15  ← produces the city market signal
-4. Economy Engine     — order 20  ← consumes the world and the two market signals
-5. Employee Engine    — order 30  ← develops the workforce
-6. Technology Engine  — order 40  ← research uses the workforce of step 5
-7. Product Engine     — order 50  ← development uses the unlocked technologies
-8. Resource Engine    — order 60  ← resource bookkeeping
-9. Production Engine  — order 70  ← consumes the reserved resources
-10. Market Engine     — order 80  ← sells the finished goods
-11. Corporation Engine — order 90  ← accrues the finances, payroll, progression
+3. Events Engine      — order 11  ← schedules the global events, expires them
+4. City Engine        — order 15  ← consumes the event pressures
+5. Economy Engine     — order 20  ← consumes the world and the three market signals
+6. Employee Engine    — order 30  ← develops the workforce
+7. Technology Engine  — order 40  ← research uses the workforce of step 6
+8. Product Engine     — order 50  ← development uses the unlocked technologies
+9. Resource Engine    — order 60  ← resource bookkeeping
+10. Production Engine — order 70  ← consumes the reserved resources
+11. Market Engine     — order 80  ← sells the finished goods
+12. Competitor Engine — order 85  ← the AI decisions and the competitive activity
+13. Corporation Engine— order 90  ← accrues the finances, payroll, progression
 ```
 
 Dependencies respected by the order:
 - the clock advances before every system;
 - **world → economy** is preserved unchanged from Stage 02;
-- **city → economy** is the Stage 05 dependency: the City Engine produces the city market signal
-  and the Economy Engine consumes it **in the same tick**;
+- **events → city / economy / technology / production / market / corporation** is the
+  Stage 06 dependency: the Events Engine runs first, so every engine that is affected by an
+  event consumes the modifiers of the **same** tick;
+- **city → economy** is preserved unchanged from Stage 05;
 - research uses the workforce developed in the same tick;
 - product development uses the technologies unlocked in the same tick;
 - production uses the products completed and the resources reserved before it;
 - sales use the finished goods and the current market conditions;
+- **market → competitors** is the Stage 06 dependency: the AI reacts to the results of the
+  market of the tick it is in. Its signal reaches the economy with the **next** tick — no
+  result that was already calculated is ever changed retroactively;
 - the corporate finances reflect the recorded transactions of the same tick without double
   counting.
 
 Pause stops every system. A failing system is isolated by the Game Core: the failure is recorded
 and the remaining systems still run.
+
+---
+
+## 9. Global Events Engine
+
+**Module:** `src/simulation/events/` · `eventState.ts` (model, catalogue) · `eventRules.ts` (rules)
+
+The Events Engine produces the **global conditions** of the world: recessions, breakthroughs,
+crises and regulations. It is a data-driven table of seventeen definitions — no JavaScript
+callbacks, no functions inside the data.
+
+### 9.1 The event definition
+
+```ts
+interface EventDefinition {
+  id: string;
+  name: string;
+  description: string;
+  category: 'economic' | 'technology' | 'industrial' | 'energy' | 'environment' | 'geopolitical';
+  severity: 'low' | 'medium' | 'high';
+  durationMs: number;        // how long the event lasts
+  cooldownMs: number;        // how long it has to be absent before it may trigger again
+  minElapsedMs: number;      // the earliest point in time at which it may trigger
+  triggers: EventTrigger;    // the conditions of the world
+  effects: EventEffectDefinition[];
+  responses?: EventResponseDefinition[];
+  weight: number;            // the weight of the deterministic selection
+  newsHeadline: string;
+}
+```
+
+The **catalogue** — all seventeen events with their effects and their responses — is documented
+in `docs/EVENT_SYSTEM.md`.
+
+### 9.2 The effect types
+
+Every effect is one of ten typed kinds. A multiplier is bounded to 0.5 … 2, a pressure to
+0 … 1 and a commodity effect may be restricted to a single commodity category.
+
+| Effect | Target | Value |
+|--------|--------|-------|
+| `commodity-demand` | The demand of a commodity category | multiplier |
+| `commodity-supply` | The supply of a commodity category | multiplier |
+| `operating-cost` | The operating costs of the corporation | multiplier |
+| `research-speed` | The research speed of the corporation | multiplier |
+| `production-efficiency` | The output of the production orders | multiplier |
+| `market-demand` | The demand of the products on the market | multiplier |
+| `city-infrastructure-pressure` | The infrastructure load of the city | pressure |
+| `city-environment-pressure` | The environment of the city | pressure |
+| `city-commercial-activity` | The commercial activity of the city | multiplier |
+| `competitor-activity` | The activity of the AI corporations | multiplier |
+
+### 9.3 Scheduling — deterministic and bounded
+
+- The scheduler evaluates the catalogue at most every `EVENT_SCHEDULE_INTERVAL_MS`
+  (12 simulated hours) of the **elapsed** simulated time.
+- An event is a candidate only when its `minElapsedMs` has passed, its cooldown has expired,
+  it is not already active and its trigger conditions are met.
+- The candidates are selected with a **deterministic weighted selection**: the roll comes from
+  the seeded xorshift generator of `@/core/utils`, whose state lives in the events state. The
+  same state always selects the same event.
+- At most `MAX_ACTIVE_EVENTS` (3) events are active at the same time.
+- A long tick can therefore never trigger a burst of events — one evaluation per tick at most.
+
+### 9.4 Activation and expiration
+
+- The activation creates the instance `evt_00n`, stamps the start and the end of the event and
+  sets the cooldown of the definition.
+- The expiry happens **exactly once**: the instance leaves the active list and is written into
+  the bounded history (24 entries).
+- An expired event has **no influence** any more — the modifiers are recomputed from the
+  active events on every tick.
+
+### 9.5 Stacking and the bounds
+
+The modifiers of the active events stack **multiplicatively**, the pressures **additively**:
+
+```
+multiplier = clamp(Π effect.multiplier, 0.5, 2)
+pressure   = clamp(Σ effect.pressure,   0,   1)
+```
+
+The result is the `EventEnvironmentModifiers` snapshot that the affected engines consume. Every
+engine that receives the snapshot applies **only** the modifier it cares about, and clamps it
+again before use. The relief a player response grants multiplies the effects of **its own
+event instance** and never leaves it.
+
+### 9.6 The player responses
+
+A response has a **real cost** and a **real effect**:
+
+- The cost is charged through the corporate ledger — a `resource` transaction when the response
+  also buys resources, an `operating` transaction otherwise.
+- The relief multiplies the effects of the event instance for a bounded duration
+  (`reliefDurationMs`), never longer than the event itself.
+- Some responses buy resources through the Resource Engine — the purchase is atomic.
+- A response may only be applied **once** per event and only while the event is active.
+
+Seven events offer responses, three of them with three options each.
+
+### 9.7 The news feed
+
+The Events Engine owns the news feed (40 items). A news item is created for every activation,
+every expiration, every significant decision of an AI corporation and every technology
+breakthrough of a competitor. The identifier sequence is shared with the events, so every
+identifier is unique and monotonic. The news is never invented — it always refers to a real
+simulation event.
+
+---
+
+## 10. Competitor AI Engine
+
+**Module:** `src/simulation/competitors/` · `competitorState.ts` (model, tables) ·
+`competitorRules.ts` (rules)
+
+The Competitor AI Engine produces **independent economic actors**: their own capital, their own
+objectives, their own research and their own market presence. It never touches the ledger of
+the player corporation and it never uses `Math.random()`.
+
+### 10.1 The three AI corporations
+
+| Corporation | Id | Specialisation | Strategy | Base personality | Tier | Capital |
+|-------------|----|----------------|----------|------------------|------|---------|
+| NEXORA INDUSTRIES | `nexora-industries` | Advanced computing, electronics and frontier technology | Technology leadership | innovative | growth | 120 000 |
+| VANTEX GLOBAL | `vantex-global` | Industrial production, materials and logistics | Operational efficiency and market share | conservative | growth | 150 000 |
+| HELION DYNAMICS | `helion-dynamics` | Energy generation, infrastructure and advanced materials | Resource control and long-term investment | defensive | established | 135 000 |
+
+The definitions are rows of the `COMPETITOR_DEFINITIONS` table — the decision engine never
+hardcodes a corporation.
+
+### 10.2 The personality profiles
+
+Five profiles are implemented. A profile changes the **weights** of the decision scoring — it
+never introduces random behaviour.
+
+| Profile | Character | Highest weights |
+|---------|-----------|-----------------|
+| `aggressive` | Takes the market | expand production, market presence, cut prices |
+| `innovative` | Buys its future with research | research, then the market |
+| `conservative` | Protects the balance | reduce expenses, accumulate resources, raise prices |
+| `opportunistic` | Reads the market | enter category, accumulate resources |
+| `defensive` | Guards what it has | recover finances, reduce expenses, accumulate |
+
+The **current** personality of a corporation may shift from its base personality — always
+deterministically, never randomly:
+
+```
+stability < 35                     → defensive
+an active shortage                  → opportunistic
+the market leader with stability 60 → aggressive
+otherwise                           → the base personality
+```
+
+### 10.3 The decision cycle
+
+1. Every `COMPETITOR_DECISION_INTERVAL_MS` (24 simulated hours) a corporation evaluates its nine
+   objectives. The first decision never happens before a full interval has passed; the three
+   corporations are offset by 0, 8 and 16 hours.
+2. The score of an objective is the **personality weight × the need of the corporation**:
+
+   ```
+   score = clamp(weight × need × affordability × modifier, 0, 1)
+   ```
+
+   A score below `COMPETITOR_DECISION_THRESHOLD` (0.25) is never taken.
+3. The objectives are evaluated in a fixed order, so a tie is always broken the same way.
+4. The action has to be **affordable** — a corporation never spends money it does not have.
+5. The action type is blocked for `COMPETITOR_ACTION_COOLDOWN_MS` (72 simulated hours), so the
+   same action cannot repeat every tick.
+6. The objective, the priority and the action are recorded in the bounded history
+   (12 entries) and published into the news feed.
+
+The nine objectives: `invest-research`, `expand-production`, `increase-market-presence`,
+`enter-category`, `cut-prices`, `raise-prices`, `reduce-expenses`, `accumulate-resources` and
+`recover-financials`.
+
+### 10.4 The financial model
+
+The AI has its **own** compact financial model. It is not the Corporation Engine of the player:
+the AI has no employees, no payroll and no ledger.
+
+```
+revenue per hour = (marketPresence / 100) × 70 × (1 + marketActivity / 100) × eventFactor
+operating cost    = (25 + marketPresence × 0.35) × costReductionFactor
+balance          += revenue − operating cost − research − investment      (never negative)
+```
+
+- The revenue is **bounded** by the market presence and by the commercial activity of the world —
+  there is no unlimited artificial income.
+- The presence carries a part of the operating cost, so the profit of a corporation stays
+  bounded even at a maximum presence.
+- A corporation **can lose money**: a recession, a missing presence or an expensive research
+  programme drive the balance down.
+- The **stability** (0..100) is derived from the capital and the profit:
+
+  ```
+  stability = clamp(50 + (balance / startingCapital − 1) × 25 + profitScore, 0, 100)
+  profitScore = clamp(netResultPerHour / operatingCostPerHour, −1, 1) × 25
+  ```
+
+  A corporation that lost its capital becomes defensive and recovers by cutting its costs.
+
+### 10.5 The technology competition
+
+The AI reuses the **existing Stage 04 technology tree** — there is no second tree.
+
+- A corporation only researches a technology of its own specialisation whose prerequisites it
+  has already unlocked.
+- A research programme costs the `researchCost` of the definition and is charged to the
+  corporation's own balance. A corporation never spends more than half of its balance on one
+  programme.
+- The progress advances with the simulated time:
+
+  ```
+  progress += (deltaMs / researchDurationMs) × (0.6 + reputation / 100 × 0.4) × eventFactor
+  ```
+
+- On completion the technology joins the unlocked technologies of the corporation, its
+  reputation grows by three points and the achievement is published into the news feed.
+- A corporation that unlocks a technology never removes it.
+
+### 10.6 The market integration
+
+The AI reports its competitive pressure through the `CompetitorMarketSignal`:
+
+```
+supplyPressure[category] = clamp(Σ categoryCapacity × presence, 0, 100)
+demandPressure[category] = clamp(Σ presence × 50 (of the categories it operates in), 0, 100)
+pricePressure[category]  = clamp(weighted average of the price pressure, −1, 1)
+```
+
+The Economy Engine applies it per commodity category:
+
+```
+effectiveSupply = clamp(supplyPressure × (1 − pricePressure), 0, 150)
+effectiveDemand = clamp(demandPressure × (1 + pricePressure), 0, 150)
+supplyFactor    = 1 + effectiveSupply / 100 × 0.12
+demandFactor    = 1 + effectiveDemand / 100 × 0.12
+```
+
+A corporation that undercuts the market (a negative price pressure) adds more effective supply,
+one that pushes the prices up adds less. The city is a consumer, the AI is a **producer** — the
+AI may add supply, but only its own bounded production capacity.
+
+The signal is only produced while there is at least one corporation — an empty competitor state
+leaves the economy exactly as it was in Stage 05.
+
+### 10.7 The competitive relationship
+
+Every corporation keeps a relationship with the player: a **standing** (−100 … 100, negative is
+hostile), the **competitive pressure** it puts on the player (0 … 100) and the simulated time of
+the last interaction. The player may only **inspect** a corporation — there is deliberately no
+command that lets the player steer the AI.

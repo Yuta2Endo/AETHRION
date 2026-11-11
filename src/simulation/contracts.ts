@@ -99,13 +99,100 @@ export interface CityMarketSignal {
 }
 
 /**
+ * Category of a traded commodity.
+ *
+ * The vocabulary lives here because the Economy, Events and Competitor
+ * engines all have to speak about commodity categories without importing each
+ * other.
+ */
+export type CommodityCategory = 'compute' | 'energy' | 'materials' | 'logistics';
+
+/**
+ * Typed integration boundary between the Competitor AI Engine and the
+ * Economy Engine (Stage 06).
+ *
+ * The competitors never touch the market directly — they report their
+ * competitive pressure per commodity category and the Economy Engine applies
+ * it. Every field is bounded and the influence is applied exactly once per
+ * economy update.
+ */
+export interface CompetitorMarketSignal {
+  /** Competitor supply pressure per commodity category, 0..100. */
+  supplyPressure: Record<CommodityCategory, number>;
+  /** Competitor demand pressure per commodity category, 0..100. */
+  demandPressure: Record<CommodityCategory, number>;
+  /**
+   * Competitive price pressure per commodity category, -1..1.
+   * Negative means the competitors undercut the market, positive means they
+   * push the prices up.
+   */
+  pricePressure: Record<CommodityCategory, number>;
+}
+
+/**
+ * The aggregated effect of the currently active global events.
+ *
+ * The Events Engine produces this snapshot and the engines that are affected
+ * consume the single modifier they care about. Every multiplier is bounded to
+ * 0.5 .. 2 and every pressure to 0 .. 1, so overlapping events can never
+ * produce an unbounded effect.
+ */
+export interface EventEnvironmentModifiers {
+  /** Multiplier on the commodity demand, per category. */
+  commodityDemand: Record<CommodityCategory, number>;
+  /** Multiplier on the commodity supply, per category. */
+  commoditySupply: Record<CommodityCategory, number>;
+  /** Multiplier on the corporate operating costs. */
+  operatingCost: number;
+  /** Multiplier on the research speed. */
+  researchSpeed: number;
+  /** Multiplier on the production efficiency. */
+  productionEfficiency: number;
+  /** Multiplier on the market demand of the products. */
+  marketDemand: number;
+  /** Additional infrastructure pressure on the city, 0..1. */
+  cityInfrastructurePressure: number;
+  /** Additional environmental pressure on the city, 0..1. */
+  cityEnvironmentPressure: number;
+  /** Multiplier on the commercial activity of the city. */
+  cityCommercialActivity: number;
+  /** Multiplier on the activity of the competitors. */
+  competitorActivity: number;
+}
+
+/**
+ * The categories of the news items.
+ */
+export type NewsCategory = 'event' | 'competitor' | 'technology' | 'market' | 'player';
+
+/**
+ * The severity of a news item.
+ */
+export type NewsSeverity = 'info' | 'low' | 'medium' | 'high';
+
+/**
+ * A news item that an engine wants to publish.
+ *
+ * The Global Events Engine owns the news feed; the other engines produce
+ * candidates and let it create the item — that keeps the identifier sequence
+ * in one place.
+ */
+export interface NewsCandidate {
+  category: NewsCategory;
+  headline: string;
+  description: string;
+  /** The identifier of the related entity, when there is one. */
+  relatedId: string | null;
+  severity: NewsSeverity;
+}
+
+/**
  * Identifier of a tradeable resource.
  *
  * Resources are consumed by products and by manufacturing. The identifier
  * lives here so that the Product, Resource and Production engines can share
  * it without importing each other.
- */
-export type ResourceId =
+ */export type ResourceId =
   | 'raw-materials'
   | 'metals'
   | 'electronics'

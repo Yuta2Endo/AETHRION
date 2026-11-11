@@ -4,6 +4,7 @@ import { useGameStore } from '@/game/state/gameStore';
 import { ManualScheduler } from '@/tests/helpers/manualScheduler';
 import { evolveWorld, getMarketActivityIndex } from '@/simulation/world';
 import { updateEconomy } from '@/simulation/economy';
+import { buildCompetitorMarketSignal } from '@/simulation/competitors';
 
 const TICK_MS = 1000;
 
@@ -34,9 +35,10 @@ describe('Simulation integration', () => {
 
     // Stage 04 added the technology, product, resource, production and market
     // systems; Stage 05 inserted the city system between the world and the
-    // economy. The original world -> economy order is preserved.
+    // economy; Stage 06 added the events and the competitors.
     expect(systems.map((system) => system.name)).toEqual([
       'world',
+      'events',
       'city',
       'economy',
       'employees',
@@ -45,9 +47,11 @@ describe('Simulation integration', () => {
       'resources',
       'production',
       'market',
+      'competitors',
       'corporation',
     ]);
-    expect(SIMULATION_SYSTEM_ORDER.world).toBeLessThan(SIMULATION_SYSTEM_ORDER.city);
+    expect(SIMULATION_SYSTEM_ORDER.world).toBeLessThan(SIMULATION_SYSTEM_ORDER.events);
+    expect(SIMULATION_SYSTEM_ORDER.events).toBeLessThan(SIMULATION_SYSTEM_ORDER.city);
     expect(SIMULATION_SYSTEM_ORDER.city).toBeLessThan(SIMULATION_SYSTEM_ORDER.economy);
     expect(SIMULATION_SYSTEM_ORDER.economy).toBeLessThan(SIMULATION_SYSTEM_ORDER.employees);
     expect(SIMULATION_SYSTEM_ORDER.employees).toBeLessThan(SIMULATION_SYSTEM_ORDER.technology);
@@ -79,6 +83,7 @@ describe('Simulation integration', () => {
   it('feeds the world state produced in the same tick into the economy', async () => {
     const worldBefore = useGameStore.getState().world;
     const economyBefore = useGameStore.getState().economy;
+    const competitorsBefore = useGameStore.getState().competitors;
 
     const expectedWorld = evolveWorld(worldBefore, { tick: 1, deltaMs: runner.getClock().getBaseSimMsPerTick() });
     const expectedIndex = getMarketActivityIndex(expectedWorld);
@@ -86,6 +91,10 @@ describe('Simulation integration', () => {
       tick: 1,
       deltaMs: runner.getClock().getBaseSimMsPerTick(),
       marketActivityIndex: expectedIndex,
+      // The competitor engine runs after the economy, so the economy observes
+      // the competitor state of the beginning of the tick — exactly like the
+      // runner does.
+      competitorSignal: buildCompetitorMarketSignal(competitorsBefore) ?? undefined,
     });
 
     await runner.step();

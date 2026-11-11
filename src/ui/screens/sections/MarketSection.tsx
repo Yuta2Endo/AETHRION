@@ -1,23 +1,30 @@
-import { useState } from 'react';
-import { Storefront, Tag } from '@phosphor-icons/react';
+import { useMemo, useState } from 'react';
+import { Storefront, Tag, UsersThree } from '@phosphor-icons/react';
 import { Badge, Button, IndicatorBar, StatCard, TextField } from '@/ui/components';
 import { useGameStore } from '@/game/state/gameStore';
 import { selectMarketState, selectPlayerCorporation, selectProductState } from '@/game/state/selectors';
 import { commands } from '@/game/commands';
 import { BASE_CURRENCY_SYMBOL } from '@/simulation/contracts';
+import { buildCompetitorMarketSignal } from '@/simulation/competitors';
+import { COMMODITY_CATEGORIES } from '@/simulation/economy';
 
 /**
  * Products & Market section.
  * Shows the finished products with their inventory, quality, price and sales
- * results, and allows adjusting the price and the market availability.
+ * results, allows adjusting the price and the market availability, and shows
+ * the competitive pressure the AI corporations put on every commodity.
  */
 export function MarketSection() {
   const corporation = useGameStore(selectPlayerCorporation);
   const products = useGameStore(selectProductState);
   const market = useGameStore(selectMarketState);
+  const competitors = useGameStore((state) => state.competitors);
+  const economy = useGameStore((state) => state.economy);
 
   const [priceDraft, setPriceDraft] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  const competition = useMemo(() => buildCompetitorMarketSignal(competitors), [competitors]);
 
   if (!corporation) {
     return null;
@@ -37,6 +44,7 @@ export function MarketSection() {
             Complete a product development project to offer a product to the market.
           </p>
         </div>
+        <CompetitivePressure competition={competition} economy={economy} />
       </section>
     );
   }
@@ -142,6 +150,82 @@ export function MarketSection() {
           {feedback}
         </p>
       ) : null}
+
+      <CompetitivePressure competition={competition} economy={economy} />
     </section>
+  );
+}
+
+/**
+ * The competitive pressure the AI corporations put on every commodity.
+ *
+ * It extends the existing market section — it never duplicates the market
+ * dashboard of the economy overview.
+ */
+function CompetitivePressure({
+  competition,
+  economy,
+}: {
+  competition: ReturnType<typeof buildCompetitorMarketSignal>;
+  economy: ReturnType<typeof useGameStore.getState>['economy'];
+}) {
+  return (
+    <>
+      <h3 className="tech-group-title">
+        <UsersThree size={14} aria-hidden="true" /> Competitive Pressure
+      </h3>
+      {competition === null ? (
+        <div className="empty-state">
+          <p className="empty-title">No competitor activity</p>
+          <p className="empty-note">The AI corporations are not competing in the markets yet.</p>
+        </div>
+      ) : (
+        <div className="resource-table">
+          <div className="resource-head" aria-hidden="true">
+            <span>Commodity</span>
+            <span>Price</span>
+            <span>Supply pressure</span>
+            <span>Demand pressure</span>
+            <span>Price pressure</span>
+          </div>
+          {COMMODITY_CATEGORIES.map((category) => {
+            const commodity = economy.commodities.find(
+              (candidate) => candidate.category === category,
+            );
+            const pressure = competition.pricePressure[category] ?? 0;
+
+            return (
+              <div key={category} className="resource-row">
+                <div className="resource-name">
+                  <span className="text-mono">{category}</span>
+                  <span className="tech-description">
+                    {commodity ? commodity.name : 'market'}
+                  </span>
+                </div>
+                <span className="text-mono">
+                  {commodity
+                    ? `${BASE_CURRENCY_SYMBOL}${commodity.price.toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      })}`
+                    : '—'}
+                </span>
+                <span className="text-mono">
+                  {Math.round(competition.supplyPressure[category] ?? 0)}
+                </span>
+                <span className="text-mono">
+                  {Math.round(competition.demandPressure[category] ?? 0)}
+                </span>
+                <span>
+                  <Badge variant={pressure < 0 ? 'warning' : pressure > 0 ? 'ok' : 'pending'}>
+                    {pressure > 0 ? '+' : ''}
+                    {pressure.toFixed(2)}
+                  </Badge>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }

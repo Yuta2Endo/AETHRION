@@ -2,18 +2,24 @@
  * Simulation runner — binds the Game Core, the Game Clock, the game state
  * and the domain engines into one running simulation.
  *
- * Tick execution order (deterministic, Stage 05):
+ * Tick execution order (deterministic, Stage 06):
  *   1. Game Clock        — advances simulated time (engine-owned, before systems)
  *   2. World Engine      — order 10
- *   3. City Engine       — order 15  ← produces the city market signal
- *   4. Economy Engine    — order 20  ← consumes the world and the two signals
- *   5. Employee Engine   — order 30  ← develops the workforce
- *   6. Technology Engine — order 40  ← research uses the workforce of step 5
- *   7. Product Engine    — order 50  ← development uses the unlocked technologies
- *   8. Resource Engine   — order 60  ← resource bookkeeping
- *   9. Production Engine — order 70  ← consumes the reserved resources
- *  10. Market Engine     — order 80  ← sells the finished goods
- *  11. Corporation Engine— order 90  ← accrues the finances, payroll, progression
+ *   3. Events Engine     — order 11  ← schedules the global events, expires them
+ *   4. City Engine       — order 15  ← consumes the event pressures
+ *   5. Economy Engine    — order 20  ← consumes the world and the three signals
+ *   6. Employee Engine   — order 30  ← develops the workforce
+ *   7. Technology Engine — order 40  ← research uses the workforce of step 6
+ *   8. Product Engine    — order 50  ← development uses the unlocked technologies
+ *   9. Resource Engine   — order 60  ← resource bookkeeping
+ *  10. Production Engine — order 70  ← consumes the reserved resources
+ *  11. Market Engine     — order 80  ← sells the finished goods
+ *  12. Competitor Engine — order 85  ← the AI decisions and the market activity
+ *  13. Corporation Engine— order 90  ← accrues the finances, payroll, progression
+ *
+ * The competitor engine runs **after** the market: the AI reacts to the
+ * results of the tick it is in, and its signal reaches the economy with the
+ * next tick. Nothing that was already calculated is ever changed retroactively.
  *
  * The runner owns the wiring only. Every rule lives in `src/simulation/*`,
  * every lifecycle rule lives in `src/game/engine/*` and every state write
@@ -22,11 +28,16 @@
 
 import { logger } from '@/core/logging/logger';
 import type { SimulationStatus } from '@/core/types';
+import { clamp } from '@/core/utils';
 import { GameClock, type GameClockConfig } from '@/game/clock/gameClock';
 import { GameEngine } from '@/game/engine/gameEngine';
 import type { EngineScheduler } from '@/game/engine/scheduler';
-import { useGameStore } from '@/game/state/gameStore';
+import { useGameStore, type GameStoreState } from '@/game/state/gameStore';
 import { advanceCity, buildCityMarketSignal, getCityOperatingCostPerHour } from '@/simulation/city';
+import {
+  advanceCompetitors,
+  buildCompetitorMarketSignal,
+} from '@/simulation/competitors';
 import {
   accrueFinances,
   getPlayerCorporation,
@@ -41,6 +52,8 @@ import {
   getActiveEmployees,
   getPayrollPeriod,
 } from '@/simulation/employees';
+import { advanceEvents, aggregateModifiers, publishNews } from '@/simulation/events';
+import type { CommodityCategory, EventEnvironmentModifiers } from '@/simulation/contracts';
 import {
   buildCorporateMarketSignal,
   ensureListing,
@@ -50,7 +63,7 @@ import { advanceDevelopment } from '@/simulation/products';
 import { advanceProduction, getTotalCapacity } from '@/simulation/production';
 import { advanceResources, consumeResources } from '@/simulation/resources';
 import { advanceResearch, getUnlockedEffects } from '@/simulation/technology';
-import { evolveWorld, getMarketActivityIndex } from '@/simulation/world';
+import { evolveWorld, getMarketActivityIndex, getWorldMetrics, type WorldState } from '@/simulation/world';
 
 /**
  * Deterministic execution order of the registered simulation systems.
@@ -58,6 +71,7 @@ import { evolveWorld, getMarketActivityIndex } from '@/simulation/world';
  */
 export const SIMULATION_SYSTEM_ORDER = {
   world: 10,
+  events: 11,
   city: 15,
   economy: 20,
   employees: 30,
@@ -66,6 +80,7 @@ export const SIMULATION_SYSTEM_ORDER = {
   resources: 60,
   production: 70,
   market: 80,
+  competitors: 85,
   corporation: 90,
 } as const;
 
@@ -121,15 +136,51 @@ export class SimulationRunner {
     });
 
     this.engine.registerSystem({
+      name: 'events',
+      order: SIMULATION_SYSTEM_ORDER.events,
+      update: (context) => {
+        const store = useGameStore.getState();
+        const world = store.world;
+        const city = store.city.city;
+
+        const result = advanceEvents(store.events, {
+          tick: context.tick,
+          deltaMs: context.deltaMs,
+          simTimeMs: context.simTimeMs,
+          elapsedSimMs: context.elapsedSimMs,
+          worldDevelopment: getAverageWorldDevelopment(world),
+          marketActivityIndex: getMarketActivityIndex(world),
+          hasCorporation: store.corporation.playerCorporationId !== null,
+          hasActiveCity:
+            city !== null && city.buildings.some((building) => building.status === 'operational'),
+        });
+
+        if (result.state === store.events) return;
+
+        // The Global Events Engine owns the news feed — it published the news
+        // of the activation and the expiration itself.
+        store.applyEventsState(result.state);
+      },
+    });
+
+    this.engine.registerSystem({
       name: 'city',
       order: SIMULATION_SYSTEM_ORDER.city,
       update: (context) => {
         const store = useGameStore.getState();
+        const modifiers = aggregateModifiers(store.events, context.simTimeMs);
+
         const next = advanceCity(store.city, {
           tick: context.tick,
           deltaMs: context.deltaMs,
           simTimeMs: context.simTimeMs,
+          eventCityPressure: {
+            infrastructure: modifiers.cityInfrastructurePressure,
+            environment: modifiers.cityEnvironmentPressure,
+            commercialActivity: modifiers.cityCommercialActivity,
+          },
         });
+
         if (next !== store.city) {
           store.applyCityState(next);
         }
@@ -164,12 +215,21 @@ export class SimulationRunner {
           ? buildCityMarketSignal(store.city.city) ?? undefined
           : undefined;
 
+        // The competitor market signal is the documented integration boundary
+        // between the AI corporations and the market.
+        const competitorSignal = buildCompetitorMarketSignal(store.competitors) ?? undefined;
+
+        // The global events modulate the supply and the demand as well.
+        const modifiers = aggregateModifiers(store.events, context.simTimeMs);
+
         const next = updateEconomy(store.economy, {
           tick: context.tick,
           deltaMs: context.deltaMs,
           marketActivityIndex: getMarketActivityIndex(store.world),
           corporateSignal: signal,
           citySignal,
+          competitorSignal,
+          eventModifiers: modifiers,
         });
         store.applyEconomyState(next);
       },
@@ -202,6 +262,7 @@ export class SimulationRunner {
             tick: context.tick,
             deltaMs: context.deltaMs,
             simTimeMs: context.simTimeMs,
+            eventResearchSpeed: aggregateModifiers(store.events, context.simTimeMs).researchSpeed,
           },
           store.employees.employees,
         );
@@ -252,6 +313,8 @@ export class SimulationRunner {
             tick: context.tick,
             deltaMs: context.deltaMs,
             simTimeMs: context.simTimeMs,
+            eventEfficiency: aggregateModifiers(store.events, context.simTimeMs)
+              .productionEfficiency,
           },
           store.employees.employees,
         );
@@ -314,6 +377,7 @@ export class SimulationRunner {
           marketActivityIndex: getMarketActivityIndex(store.world),
           marketReach: effects.marketReach ?? 1,
           simTimeMs: context.simTimeMs,
+          eventMarketDemand: aggregateModifiers(store.events, context.simTimeMs).marketDemand,
         });
 
         store.applyProductState(sales.products);
@@ -337,6 +401,41 @@ export class SimulationRunner {
               });
             }
           }
+        }
+      },
+    });
+
+    this.engine.registerSystem({
+      name: 'competitors',
+      order: SIMULATION_SYSTEM_ORDER.competitors,
+      update: (context) => {
+        const store = useGameStore.getState();
+        const modifiers = aggregateModifiers(store.events, context.simTimeMs);
+
+        const result = advanceCompetitors(store.competitors, {
+          tick: context.tick,
+          deltaMs: context.deltaMs,
+          simTimeMs: context.simTimeMs,
+          marketActivityIndex: getMarketActivityIndex(store.world),
+          globalDemandIndex: store.economy.globalDemandIndex,
+          globalSupplyIndex: store.economy.globalSupplyIndex,
+          playerPresence: getPlayerMarketPresence(store),
+          modifiers,
+          hasShortage: hasCommodityShortage(modifiers),
+          hasSurplus: hasCommoditySurplus(modifiers),
+        });
+
+        if (result.state === store.competitors) return;
+
+        store.applyCompetitorsState(result.state);
+
+        // The news of the AI is published into the events slice.
+        if (result.news.length > 0) {
+          let events = store.events;
+          for (const candidate of result.news) {
+            events = publishNews(events, candidate, context.simTimeMs);
+          }
+          store.applyEventsState(events);
         }
       },
     });
@@ -369,6 +468,8 @@ export class SimulationRunner {
           cityOperatingCostPerHour: store.city.city
             ? getCityOperatingCostPerHour(store.city.city)
             : 0,
+          // The operating cost modifier of the active global events (Stage 06).
+          eventOperatingCost: aggregateModifiers(store.events, context.simTimeMs).operatingCost,
         };
 
         // 1. Accrue revenue and operating costs for the elapsed time.
@@ -515,3 +616,47 @@ export class SimulationRunner {
  * The UI controls this instance; the simulation never depends on React.
  */
 export const simulation = new SimulationRunner();
+
+/**
+ * The four commodity categories in their canonical order.
+ */
+const CATEGORIES: CommodityCategory[] = ['compute', 'energy', 'materials', 'logistics'];
+
+/**
+ * The average development of the world, 0..100.
+ */
+function getAverageWorldDevelopment(world: WorldState): number {
+  return getWorldMetrics(world).averageDevelopment;
+}
+
+/**
+ * The market presence of the player corporation, 0..100.
+ *
+ * It is a proxy built from the listings the player offers — the competitors
+ * compare themselves with it.
+ */
+function getPlayerMarketPresence(store: GameStoreState): number {
+  const active = store.market.listings.filter((listing) => listing.active).length;
+  const sold = store.market.listings.reduce((total, listing) => total + listing.unitsSold, 0);
+  return clamp(active * 18 + sold * 0.05, 0, 100);
+}
+
+/**
+ * Whether an active global event creates a commodity shortage.
+ */
+function hasCommodityShortage(modifiers: EventEnvironmentModifiers): boolean {
+  return CATEGORIES.some(
+    (category) =>
+      modifiers.commoditySupply[category] < 1 && modifiers.commodityDemand[category] >= 1,
+  );
+}
+
+/**
+ * Whether an active global event creates a commodity surplus.
+ */
+function hasCommoditySurplus(modifiers: EventEnvironmentModifiers): boolean {
+  return CATEGORIES.some(
+    (category) =>
+      modifiers.commoditySupply[category] > 1 && modifiers.commodityDemand[category] <= 1,
+  );
+}

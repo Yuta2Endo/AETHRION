@@ -69,6 +69,13 @@ export interface CorporationContext {
    * before the City Engine existed.
    */
   cityOperatingCostPerHour?: number;
+  /**
+   * The operating cost modifier of the active global events (Stage 06).
+   *
+   * Optional: when it is absent the corporation behaves exactly as it did
+   * before the Global Events Engine existed.
+   */
+  eventOperatingCost?: number;
 }
 
 /**
@@ -376,7 +383,9 @@ export function accrueFinances(
   const operatingExpenses = roundTo(
     (BASE_OPERATING_COST_PER_HOUR + Math.max(0, context.employeeCount) * OPERATING_COST_PER_EMPLOYEE_PER_HOUR) *
       hours *
-      tier.operatingCostFactor +
+      tier.operatingCostFactor *
+      // The operating cost modifier of the active global events (Stage 06).
+      clamp(context.eventOperatingCost ?? 1, 0.5, 2) +
       // The operating cost of the city buildings (Stage 05). It is not scaled
       // by the tier — the buildings cost what they cost.
       Math.max(0, context.cityOperatingCostPerHour ?? 0) * hours,

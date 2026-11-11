@@ -1,8 +1,8 @@
 # AETHRION — Development Roadmap
 
 **Project:** AETHRION  
-**Stage:** 05 — City Engine (current)  
-**Status:** Stage 05 complete — Stage 06 awaiting user approval
+**Stage:** 06 — Events & Competitor AI Engines (current)  
+**Status:** Stage 06 complete — Stage 07 awaiting user approval
 
 ---
 
@@ -89,15 +89,29 @@
 
 ---
 
-## Stage 06: Events & Competitor AI Engines (next — pending user approval)
+## Completed — Stage 06: Events & Competitor AI Engines
 
-- World events, news feed, dynamic scenario triggers.
-- AI corporations and competitive behaviour.
-- Market competition and reaction to player actions.
+- **Global Events Engine**: seventeen data-driven events in six categories (economic, technology, industrial, energy, environment, geopolitical) with typed, bounded and serialisable effects — no callbacks inside the data.
+- **Event scheduling**: a deterministic, seeded xorshift generator whose state lives in the events state; a weighted selection every twelve simulated hours, cooldowns per event, at most three simultaneous events and a maximum of one evaluation per tick.
+- **Event lifecycle**: an event activates exactly once and expires exactly once; the effects stack multiplicatively with an explicit clamp (0.5 … 2) and the pressures additively (0 … 1); an expired event has no influence any more.
+- **Player responses**: seven events offer a real choice — the cost is charged through the corporate ledger, some responses buy resources through the Resource Engine, the relief scales the effects of its own event instance and it may only be applied once.
+- **World, city and economy integration**: the events modulate the commodity demand and supply, the operating costs, the research speed, the production output, the market demand, the infrastructure and the environment of the city and the activity of the competitors — every modifier bounded and applied in the same tick.
+- **Competitor AI Engine**: three independent AI corporations (NEXORA INDUSTRIES, VANTEX GLOBAL, HELION DYNAMICS) with five personality profiles, their own compact financial model, their own research programmes, their own market presence and their own relationship with the player.
+- **Decision engine**: nine weighted objectives, a deterministic evaluation order, a twenty-four hour decision interval, a seventy-two hour action cooldown, an affordability check and a bounded action history.
+- **Technology competition**: the AI reuses the existing Stage 04 technology tree — the same definitions, the same prerequisites and the same durations. No second tree.
+- **Market integration**: the new `CompetitorMarketSignal` raises the commodity supply and demand by at most 12 %; the AI never touches the market directly and never touches the player finances.
+- **News system**: a bounded feed of forty items, generated exclusively from real simulation events — the activations, the expirations, the decisions of the AI and the technology breakthroughs.
+- **Simulation integration**: the tick order grew to twelve systems (world → **events** → city → economy → employees → technology → products → resources → production → market → **competitors** → corporation). The events run first so their modifiers apply in the same tick; the AI runs after the market so nothing that was already calculated is changed retroactively.
+- **Command layer**: a new `eventCommands.ts` (respond to an event, mark a news item as read) and a new `competitorCommands.ts` (read-only inspection of an AI corporation). No command exists that has no gameplay purpose.
+- **Interface**: Global Events, News Feed and Competitor Overview sections with the dossier of a corporation; the market section extended with the competitive pressure per commodity.
+- **Tests**: 464 passing (was 360) — including the complete event and competitor gameplay chain.
+- Documentation updated; `docs/EVENT_SYSTEM.md` and `docs/COMPETITOR_AI.md` created, `docs/ENGINE_RULES.md` extended and `docs/STAGE_06_FINAL_REPORT.md` created.
+
+**Still deferred to later stages (unchanged):** Web Workers (Stage 07), IndexedDB save/load (Stage 08), Three.js world rendering (Stage 09).
 
 ---
 
-## Stage 07: Performance & Web Workers
+## Stage 07: Performance & Web Workers (next — pending user approval)
 
 - Off-main-thread simulation ticks via Web Workers + Comlink.
 - Simulation cost profiling and optimisation.

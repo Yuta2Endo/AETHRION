@@ -30,7 +30,9 @@ import { CorporationOverview } from '@/ui/screens/sections/CorporationOverview';
 import { CityConstructionSection } from '@/ui/screens/sections/CityConstructionSection';
 import { CityLandSection } from '@/ui/screens/sections/CityLandSection';
 import { CityOverviewSection } from '@/ui/screens/sections/CityOverviewSection';
+import { CompetitorOverviewSection } from '@/ui/screens/sections/CompetitorOverviewSection';
 import { EmployeeManagement } from '@/ui/screens/sections/EmployeeManagement';
+import { EventsSection } from '@/ui/screens/sections/EventsSection';
 import { FinanceOverview } from '@/ui/screens/sections/FinanceOverview';
 import { HiringPanel } from '@/ui/screens/sections/HiringPanel';
 import { ManufacturingSection } from '@/ui/screens/sections/ManufacturingSection';
@@ -182,6 +184,12 @@ export function Dashboard() {
 
       <CityConstructionSection />
 
+      {/* ----------------------------------------------------- global events */}
+      <EventsSection />
+
+      {/* --------------------------------------------------------- competitors */}
+      <CompetitorOverviewSection />
+
       {/* ------------------------------------------------------ world overview */}
       <section className="section-block" aria-label="World overview">
         <h2 className="section-title">
@@ -322,7 +330,7 @@ export function Dashboard() {
       <footer className="dashboard-footer">
         <div className="badge brand-badge">Premium Neon Sci-Fi</div>
         <div className="version-text">
-          AETHRION v0.5.0 — Stage 05 City Engine &amp; Urban Infrastructure
+          AETHRION v0.6.0 — Stage 06 Events &amp; Competitor AI Engines
         </div>
       </footer>
     </div>

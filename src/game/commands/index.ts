@@ -58,6 +58,12 @@ export {
 } from './cityCommands';
 export type { StartConstructionCommand } from './cityCommands';
 
+export { markNewsReadCommand, respondToEventCommand } from './eventCommands';
+export { getAvailableResponses } from './eventCommands';
+
+export { getCompetitorCommand } from './competitorCommands';
+export type { GetCompetitorCommand } from './competitorCommands';
+
 export { failure } from './shared';
 
 import { createPlayerCorporation, dismissEmployeeCommand, hireEmployeeCommand } from './corporationCommands';
@@ -87,6 +93,8 @@ import {
   suspendBuildingCommand,
   unassignBuildingCommand,
 } from './cityCommands';
+import { markNewsReadCommand, respondToEventCommand } from './eventCommands';
+import { getCompetitorCommand } from './competitorCommands';
 
 /**
  * All player commands, grouped for convenient access from the interface.
@@ -122,4 +130,9 @@ export const commands = {
   resumeBuilding: resumeBuildingCommand,
   demolishBuilding: demolishBuildingCommand,
   renameCity: renameCityCommand,
+  // Global events
+  respondToEvent: respondToEventCommand,
+  markNewsRead: markNewsReadCommand,
+  // Competitors
+  getCompetitor: getCompetitorCommand,
 };

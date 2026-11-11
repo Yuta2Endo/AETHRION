@@ -18,10 +18,15 @@
 
 import { logger } from '@/core/logging/logger';
 import { clamp, isFiniteNumber, roundTo } from '@/core/utils';
-import type { CityMarketSignal, CorporateMarketSignal } from '@/simulation/contracts';
+import type {
+  CityMarketSignal,
+  CommodityCategory,
+  CompetitorMarketSignal,
+  CorporateMarketSignal,
+  EventEnvironmentModifiers,
+} from '@/simulation/contracts';
 import {
   isValidEconomyState,
-  type CommodityCategory,
   type EconomyState,
   type MarketCommodity,
 } from './economyState';
@@ -46,6 +51,18 @@ export interface EconomyContext {
    * Optional: when it is absent the market behaves exactly as in Stage 04.
    */
   citySignal?: CityMarketSignal;
+  /**
+   * The competitor market signal (Stage 06).
+   *
+   * Optional: when it is absent the market behaves exactly as in Stage 05.
+   */
+  competitorSignal?: CompetitorMarketSignal;
+  /**
+   * The modifiers of the active global events (Stage 06).
+   *
+   * Optional: when it is absent the market behaves exactly as in Stage 05.
+   */
+  eventModifiers?: EventEnvironmentModifiers;
 }
 
 export const ECONOMY_RULES = {
@@ -75,6 +92,10 @@ export const ECONOMY_RULES = {
    * level of demand.
    */
   citySaturationWeight: 0.25,
+  /** How strongly the competitors raise the commodity supply. */
+  competitorSupplyWeight: 0.12,
+  /** How strongly the competitors raise the commodity demand. */
+  competitorDemandWeight: 0.12,
 } as const;
 
 /**
@@ -158,6 +179,65 @@ export function getCitySaturationFactor(
   );
 }
 
+/**
+ * The supply factor the competitors add to a commodity category.
+ *
+ * A competitor that undercuts the market (a negative price pressure) adds
+ * more effective supply, one that pushes the prices up adds less. Without a
+ * competitor signal the factor is exactly 1 and the market behaves exactly as
+ * in Stage 05.
+ */
+export function getCompetitorSupplyFactor(
+  signal: CompetitorMarketSignal | undefined,
+  category: CommodityCategory,
+): number {
+  if (!signal) return 1;
+
+  const pressure = clamp(signal.supplyPressure[category] ?? 0, 0, 100);
+  const pricePressure = clamp(signal.pricePressure[category] ?? 0, -1, 1);
+  const effective = clamp(pressure * (1 - pricePressure), 0, 150);
+
+  return roundTo(1 + (effective / 100) * ECONOMY_RULES.competitorSupplyWeight, 6);
+}
+
+/**
+ * The demand factor the competitors add to a commodity category.
+ */
+export function getCompetitorDemandFactor(
+  signal: CompetitorMarketSignal | undefined,
+  category: CommodityCategory,
+): number {
+  if (!signal) return 1;
+
+  const pressure = clamp(signal.demandPressure[category] ?? 0, 0, 100);
+  const pricePressure = clamp(signal.pricePressure[category] ?? 0, -1, 1);
+  const effective = clamp(pressure * (1 + pricePressure), 0, 150);
+
+  return roundTo(1 + (effective / 100) * ECONOMY_RULES.competitorDemandWeight, 6);
+}
+
+/**
+ * The multiplier an active global event applies to the commodity demand.
+ */
+export function getEventDemandFactor(
+  modifiers: EventEnvironmentModifiers | undefined,
+  category: CommodityCategory,
+): number {
+  if (!modifiers) return 1;
+  return clamp(modifiers.commodityDemand[category] ?? 1, 0.5, 2);
+}
+
+/**
+ * The multiplier an active global event applies to the commodity supply.
+ */
+export function getEventSupplyFactor(
+  modifiers: EventEnvironmentModifiers | undefined,
+  category: CommodityCategory,
+): number {
+  if (!modifiers) return 1;
+  return clamp(modifiers.commoditySupply[category] ?? 1, 0.5, 2);
+}
+
 function updateCommodity(
   commodity: MarketCommodity,
   hours: number,
@@ -234,7 +314,7 @@ export function updateEconomy(state: EconomyState, context: EconomyContext): Eco
   // Without the signal both factors are exactly 1 and the market behaves
   // exactly as in Stage 02.
   const signal = context.corporateSignal;
-  const supplyFactor =
+  const supplyFactorBase =
     1 +
     (signal ? (clamp(signal.supplyPressure, 0, 100) / 100) * ECONOMY_RULES.corporateSupplyWeight : 0);
   const corporateDemandFactor =
@@ -246,16 +326,36 @@ export function updateEconomy(state: EconomyState, context: EconomyContext): Eco
   // behaves exactly as in Stage 04.
   const citySignal = context.citySignal;
 
-  const commodities = state.commodities.map((commodity) =>
-    updateCommodity(
+  // The competitor signal (Stage 06) and the active global events modulate
+  // the supply and the demand as well. Without them every factor is exactly 1
+  // and the market behaves exactly as in Stage 05.
+  const competitorSignal = context.competitorSignal;
+  const eventModifiers = context.eventModifiers;
+
+  const commodities = state.commodities.map((commodity) => {
+    const category = commodity.category;
+
+    const supplyFactor =
+      supplyFactorBase *
+      getEventSupplyFactor(eventModifiers, category) *
+      getCompetitorSupplyFactor(competitorSignal, category);
+
+    const demandFactor =
+      activityFactor *
+      corporateDemandFactor *
+      getEventDemandFactor(eventModifiers, category) *
+      getCompetitorDemandFactor(competitorSignal, category) *
+      getCityDemandFactor(citySignal, category);
+
+    return updateCommodity(
       commodity,
       hours,
-      activityFactor * corporateDemandFactor,
+      demandFactor,
       supplyFactor,
-      getCityDemandFactor(citySignal, commodity.category),
-      getCitySaturationFactor(citySignal, commodity.category),
-    ),
-  );
+      1,
+      getCitySaturationFactor(citySignal, category),
+    );
+  });
 
   const supplyIndex =
     (commodities.reduce((acc, c) => acc + c.supply / c.baseSupply, 0) /

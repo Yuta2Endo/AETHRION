@@ -77,3 +77,15 @@ export const selectCityPlots = (state: GameStoreState) => state.city.city?.plots
 export const selectCityBuildings = (state: GameStoreState) => state.city.city?.buildings;
 /** The aggregated urban figures — a stable reference, or undefined without a city. */
 export const selectCityStatistics = (state: GameStoreState) => state.city.city?.statistics;
+
+export const selectEventsState = (state: GameStoreState) => state.events;
+/** The global events that are currently active — a stable reference. */
+export const selectActiveEvents = (state: GameStoreState) => state.events.activeEvents;
+/** The bounded event history — a stable reference. */
+export const selectEventHistory = (state: GameStoreState) => state.events.history;
+/** The news feed — a stable reference. */
+export const selectNews = (state: GameStoreState) => state.events.news;
+
+export const selectCompetitorsState = (state: GameStoreState) => state.competitors;
+/** The AI corporations — a stable reference. */
+export const selectCompetitors = (state: GameStoreState) => state.competitors.competitors;

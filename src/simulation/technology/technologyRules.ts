@@ -30,6 +30,12 @@ export interface ResearchContext {
   deltaMs: number;
   /** Simulated time the research is recorded at. */
   simTimeMs: number;
+  /**
+   * The research speed modifier of the active global events (Stage 06).
+   *
+   * Optional: when it is absent the research behaves exactly as in Stage 04.
+   */
+  eventResearchSpeed?: number;
 }
 
 /**
@@ -334,7 +340,9 @@ export function advanceResearch(
     return state;
   }
 
-  const speedMultiplier = getUnlockedEffects(state).researchSpeed ?? 1;
+  const speedMultiplier =
+    (getUnlockedEffects(state).researchSpeed ?? 1) *
+    clamp(context.eventResearchSpeed ?? 1, 0.5, 2);
   const unlocked = [...state.unlocked];
   const history = [...state.history];
 

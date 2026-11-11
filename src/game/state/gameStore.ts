@@ -19,12 +19,14 @@ import { create } from 'zustand';
 import type { SimulationStatus } from '@/core/types';
 import type { GameDate } from '@/game/clock/gameClock';
 import { createInitialCityState, type CityState } from '@/simulation/city';
+import { createInitialCompetitorsState, type CompetitorsState } from '@/simulation/competitors';
 import {
   createInitialCorporationState,
   type CorporationState,
 } from '@/simulation/corporation';
 import { createInitialEconomy, type EconomyState } from '@/simulation/economy';
 import { createInitialEmployeeState, type EmployeeState } from '@/simulation/employees';
+import { createInitialEventsState, type EventsState } from '@/simulation/events';
 import { createInitialMarketState, type MarketState } from '@/simulation/market';
 import { createInitialProductState, type ProductState } from '@/simulation/products';
 import { createInitialProductionState, type ProductionState } from '@/simulation/production';
@@ -79,6 +81,10 @@ export interface GameStoreState {
   market: MarketState;
   /** The city, its districts, its land and its buildings. */
   city: CityState;
+  /** The global events, their history and the news feed. */
+  events: EventsState;
+  /** The AI corporations. */
+  competitors: CompetitorsState;
   simulation: SimulationMeta;
 
   /** Controlled updates — the store stores results, it never computes them. */
@@ -92,6 +98,8 @@ export interface GameStoreState {
   applyProductionState: (next: ProductionState) => void;
   applyMarketState: (next: MarketState) => void;
   applyCityState: (next: CityState) => void;
+  applyEventsState: (next: EventsState) => void;
+  applyCompetitorsState: (next: CompetitorsState) => void;
   applySimulationMeta: (next: Partial<SimulationMeta>) => void;
   applyEmpire: (next: Partial<EmpireState>) => void;
   /** Restores the initial simulation state. */
@@ -127,6 +135,8 @@ export const useGameStore = create<GameStoreState>()((set) => ({
   production: createInitialProductionState(),
   market: createInitialMarketState(),
   city: createInitialCityState(),
+  events: createInitialEventsState(),
+  competitors: createInitialCompetitorsState(),
   simulation: { ...INITIAL_SIMULATION },
 
   applyWorldState: (next) => set({ world: next }),
@@ -139,6 +149,8 @@ export const useGameStore = create<GameStoreState>()((set) => ({
   applyProductionState: (next) => set({ production: next }),
   applyMarketState: (next) => set({ market: next }),
   applyCityState: (next) => set({ city: next }),
+  applyEventsState: (next) => set({ events: next }),
+  applyCompetitorsState: (next) => set({ competitors: next }),
   applySimulationMeta: (next) =>
     set((state) => ({ simulation: { ...state.simulation, ...next } })),
   applyEmpire: (next) => set((state) => ({ empire: { ...state.empire, ...next } })),
@@ -155,6 +167,8 @@ export const useGameStore = create<GameStoreState>()((set) => ({
       production: createInitialProductionState(),
       market: createInitialMarketState(),
       city: createInitialCityState(),
+      events: createInitialEventsState(),
+      competitors: createInitialCompetitorsState(),
       simulation: { ...INITIAL_SIMULATION },
     }),
 }));
@@ -170,6 +184,8 @@ export type {
   ProductionState,
   MarketState,
   CityState,
+  EventsState,
+  CompetitorsState,
   GameDate,
   SimulationStatus,
 };
