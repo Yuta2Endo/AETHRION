@@ -47,3 +47,21 @@ export const selectEmployeeState = (state: GameStoreState) => state.employees;
 /** All employee records — a stable array reference between updates. */
 export const selectEmployees = (state: GameStoreState) => state.employees.employees;
 export const selectEmployeeCount = (state: GameStoreState) => state.employees.employees.length;
+
+export const selectTechnologyState = (state: GameStoreState) => state.technology;
+export const selectUnlockedTechnologies = (state: GameStoreState) => state.technology.unlocked;
+export const selectResearchProjects = (state: GameStoreState) => state.technology.projects;
+
+export const selectProductState = (state: GameStoreState) => state.products;
+export const selectProductInstances = (state: GameStoreState) => state.products.instances;
+
+export const selectResourceState = (state: GameStoreState) => state.resources;
+export const selectResourceBalances = (state: GameStoreState) => state.resources.balances;
+export const selectResourceTransactions = (state: GameStoreState) => state.resources.transactions;
+
+export const selectProductionState = (state: GameStoreState) => state.production;
+export const selectFacilities = (state: GameStoreState) => state.production.facilities;
+export const selectProductionOrders = (state: GameStoreState) => state.production.orders;
+
+export const selectMarketState = (state: GameStoreState) => state.market;
+export const selectMarketListings = (state: GameStoreState) => state.market.listings;

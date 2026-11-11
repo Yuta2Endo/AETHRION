@@ -11,6 +11,7 @@ import { clamp, roundTo } from '@/core/utils';
 import {
   applyTransaction,
   closeFinancialPeriod,
+  recordFinancialEvent,
   type Corporation,
 } from '@/simulation/corporation';
 import type { Employee } from './employeeState';
@@ -146,7 +147,7 @@ export function applyPayroll(
   }
 
   if (corporation.finances.balance >= payroll.total) {
-    let next = applyTransaction(corporation, {
+    let next = recordFinancialEvent(corporation, {
       type: 'payroll',
       amount: -payroll.total,
       description: `Payroll for ${payroll.employeeCount} employees (${period.id})`,
@@ -157,10 +158,6 @@ export function applyPayroll(
       ...next,
       finances: {
         ...next.finances,
-        lifetimePayrollExpenses: roundTo(
-          next.finances.lifetimePayrollExpenses + payroll.total,
-          2,
-        ),
         periodPayrollExpenses: roundTo(
           next.finances.periodPayrollExpenses + payroll.total,
           2,

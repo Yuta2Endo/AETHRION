@@ -32,17 +32,27 @@ describe('Simulation integration', () => {
   it('registers the world and economy systems in the documented order', () => {
     const systems = runner.getEngine().getSystems();
 
-    // Stage 03 added the employee and corporation systems; the original
-    // world -> economy order is preserved.
+    // Stage 04 added the technology, product, resource, production and market
+    // systems; the original world -> economy order is preserved.
     expect(systems.map((system) => system.name)).toEqual([
       'world',
       'economy',
       'employees',
+      'technology',
+      'products',
+      'resources',
+      'production',
+      'market',
       'corporation',
     ]);
     expect(SIMULATION_SYSTEM_ORDER.world).toBeLessThan(SIMULATION_SYSTEM_ORDER.economy);
     expect(SIMULATION_SYSTEM_ORDER.economy).toBeLessThan(SIMULATION_SYSTEM_ORDER.employees);
-    expect(SIMULATION_SYSTEM_ORDER.employees).toBeLessThan(SIMULATION_SYSTEM_ORDER.corporation);
+    expect(SIMULATION_SYSTEM_ORDER.employees).toBeLessThan(SIMULATION_SYSTEM_ORDER.technology);
+    expect(SIMULATION_SYSTEM_ORDER.technology).toBeLessThan(SIMULATION_SYSTEM_ORDER.products);
+    expect(SIMULATION_SYSTEM_ORDER.products).toBeLessThan(SIMULATION_SYSTEM_ORDER.resources);
+    expect(SIMULATION_SYSTEM_ORDER.resources).toBeLessThan(SIMULATION_SYSTEM_ORDER.production);
+    expect(SIMULATION_SYSTEM_ORDER.production).toBeLessThan(SIMULATION_SYSTEM_ORDER.market);
+    expect(SIMULATION_SYSTEM_ORDER.market).toBeLessThan(SIMULATION_SYSTEM_ORDER.corporation);
     expect(systems[0].order).toBeLessThan(systems[1].order);
   });
 

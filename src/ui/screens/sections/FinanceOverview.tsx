@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { CalendarBlank, Coins, Receipt, Wallet } from '@phosphor-icons/react';
+import { CalendarBlank, ChartLine, Coins, Cube, Factory, Flask, Package, Receipt, Storefront, Wallet } from '@phosphor-icons/react';
 import { StatCard, TransactionRow } from '@/ui/components';
 import { useGameStore } from '@/game/state/gameStore';
 import { selectPlayerCorporation } from '@/game/state/selectors';
 import { BASE_CURRENCY_SYMBOL } from '@/simulation/contracts';
-import { getPeriodNetProfit } from '@/simulation/corporation';
+import { getNetProfit } from '@/simulation/corporation';
 import { getPayrollPeriod } from '@/simulation/employees';
 
 const SIM_DAY_MS = 24 * 3_600_000;
@@ -25,7 +25,6 @@ export function FinanceOverview() {
   }
 
   const { finances } = corporation;
-  const periodNet = getPeriodNetProfit(finances);
   const daysUntilPayroll = period.remainingInPeriodMs / SIM_DAY_MS;
 
   return (
@@ -58,10 +57,42 @@ export function FinanceOverview() {
           icon={Receipt}
         />
         <StatCard
-          label="Period Net Profit"
-          value={`${BASE_CURRENCY_SYMBOL}${periodNet.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          label="Research Expenses"
+          value={`${BASE_CURRENCY_SYMBOL}${finances.lifetimeResearchExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          icon={Flask}
+        />
+        <StatCard
+          label="Development Expenses"
+          value={`${BASE_CURRENCY_SYMBOL}${finances.lifetimeDevelopmentExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          icon={Package}
+        />
+        <StatCard
+          label="Resource Purchases"
+          value={`${BASE_CURRENCY_SYMBOL}${finances.lifetimeResourceExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          icon={Cube}
+        />
+        <StatCard
+          label="Manufacturing Expenses"
+          value={`${BASE_CURRENCY_SYMBOL}${finances.lifetimeProductionExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          icon={Factory}
+        />
+        <StatCard
+          label="Sales Revenue"
+          value={`${BASE_CURRENCY_SYMBOL}${finances.lifetimeSalesRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          icon={Storefront}
+          tone="success"
+        />
+        <StatCard
+          label="Workforce Revenue"
+          value={`${BASE_CURRENCY_SYMBOL}${finances.lifetimeWorkforceRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
           icon={Coins}
-          tone={periodNet >= 0 ? 'success' : 'warning'}
+          tone="accent"
+        />
+        <StatCard
+          label="Net Profit"
+          value={`${BASE_CURRENCY_SYMBOL}${getNetProfit(finances).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          icon={ChartLine}
+          tone={getNetProfit(finances) >= 0 ? 'success' : 'warning'}
         />
         <StatCard
           label="Next Payroll"

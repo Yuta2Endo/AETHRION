@@ -174,13 +174,84 @@ export function createInitialFinances(balance = INITIAL_CORPORATION_BALANCE): Co
   return {
     balance: roundTo(balance, 2),
     lifetimeRevenue: 0,
+    lifetimeWorkforceRevenue: 0,
+    lifetimeSalesRevenue: 0,
     lifetimeOperatingExpenses: 0,
     lifetimePayrollExpenses: 0,
     lifetimeHiringCosts: 0,
+    lifetimeResearchExpenses: 0,
+    lifetimeDevelopmentExpenses: 0,
+    lifetimeResourceExpenses: 0,
+    lifetimeProductionExpenses: 0,
     periodRevenue: 0,
     periodOperatingExpenses: 0,
     periodPayrollExpenses: 0,
   };
+}
+
+/**
+ * Records a financial event: applies the transaction to the ledger and
+ * updates the matching lifetime counter in one atomic step.
+ *
+ * A rejected transaction (non-finite amount or an overdraft) leaves the
+ * corporation completely unchanged.
+ */
+export function recordFinancialEvent(
+  corporation: Corporation,
+  event: {
+    type: TransactionType;
+    /** Signed amount: a negative value is an expense, a positive value revenue. */
+    amount: number;
+    description: string;
+    simTimeMs: number;
+  },
+): Corporation {
+  const withTransaction = applyTransaction(corporation, {
+    type: event.type,
+    amount: event.amount,
+    description: event.description,
+    simTimeMs: event.simTimeMs,
+  });
+
+  if (withTransaction === corporation) {
+    // The transaction was rejected — nothing changed.
+    return corporation;
+  }
+
+  const finances = { ...withTransaction.finances };
+  const amount = roundTo(Math.abs(event.amount), 2);
+
+  switch (event.type) {
+    case 'sales':
+      finances.lifetimeSalesRevenue = roundTo(finances.lifetimeSalesRevenue + amount, 2);
+      finances.lifetimeRevenue = roundTo(finances.lifetimeRevenue + amount, 2);
+      break;
+    case 'research':
+      finances.lifetimeResearchExpenses = roundTo(finances.lifetimeResearchExpenses + amount, 2);
+      break;
+    case 'development':
+      finances.lifetimeDevelopmentExpenses = roundTo(finances.lifetimeDevelopmentExpenses + amount, 2);
+      break;
+    case 'resource':
+      finances.lifetimeResourceExpenses = roundTo(finances.lifetimeResourceExpenses + amount, 2);
+      break;
+    case 'production':
+      finances.lifetimeProductionExpenses = roundTo(finances.lifetimeProductionExpenses + amount, 2);
+      break;
+    case 'hiring':
+      finances.lifetimeHiringCosts = roundTo(finances.lifetimeHiringCosts + amount, 2);
+      break;
+    case 'payroll':
+      finances.lifetimePayrollExpenses = roundTo(finances.lifetimePayrollExpenses + amount, 2);
+      break;
+    case 'operating':
+      finances.lifetimeOperatingExpenses = roundTo(finances.lifetimeOperatingExpenses + amount, 2);
+      break;
+    default:
+      break;
+  }
+
+  return { ...withTransaction, finances };
 }
 
 export interface TransactionInput {
@@ -295,6 +366,10 @@ export function accrueFinances(
     finances: {
       ...corporation.finances,
       lifetimeRevenue: roundTo(corporation.finances.lifetimeRevenue + revenue, 2),
+      lifetimeWorkforceRevenue: roundTo(
+        corporation.finances.lifetimeWorkforceRevenue + revenue,
+        2,
+      ),
       lifetimeOperatingExpenses: roundTo(
         corporation.finances.lifetimeOperatingExpenses + operatingExpenses,
         2,

@@ -39,14 +39,27 @@ export {
   selectEmployeeState,
   selectEmployees,
   selectEmpire,
+  selectFacilities,
+  selectMarketListings,
+  selectMarketState,
   selectPlayerCorporation,
+  selectProductInstances,
+  selectProductState,
+  selectProductionOrders,
+  selectProductionState,
   selectRegions,
+  selectResearchProjects,
+  selectResourceBalances,
+  selectResourceState,
+  selectResourceTransactions,
   selectSimulation,
   selectSimulationDate,
   selectSimulationError,
   selectSimulationSpeed,
   selectSimulationStatus,
   selectSimulationTick,
+  selectTechnologyState,
+  selectUnlockedTechnologies,
   selectWorld,
 } from '@/game/state/selectors';
 
@@ -56,7 +69,15 @@ export {
   dismissEmployeeCommand,
   hireEmployeeCommand,
 } from '@/game/commands';
-export type { CreateCorporationCommand, HireEmployeeCommand } from '@/game/commands';
+export type {
+  CreateCorporationCommand,
+  CreateFacilityCommand,
+  HireEmployeeCommand,
+  PurchaseResourceCommand,
+  StartProductDevelopmentCommand,
+  StartProductionCommand,
+  StartResearchCommand,
+} from '@/game/commands';
 
 export {
   SimulationRunner,

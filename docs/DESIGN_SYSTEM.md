@@ -1,7 +1,7 @@
 # AETHRION — Design System
 
 **Project:** AETHRION  
-**Stage:** 03 — Corporation & Employee Engines
+**Stage:** 04 — Technology & Production Engines
 
 ## 1. Brand Identity
 
@@ -65,7 +65,7 @@ Responsive layout with top bar (brand, theme toggle, actions), collapsible sideb
 ## 7. Screens
 
 - `LoadingScreen` — branded initialization screen, shown until the simulation produced its first tick.
-- `Dashboard` — the **Empire Dashboard**: simulation control panel, corporation overview, employee management, hiring, finance overview, world overview with region indicators, economy overview with market prices and trends. Every value is read from the live simulation state.
+- `Dashboard` — the **Empire Dashboard**: simulation control panel, corporation overview, technology & research, product development, resource inventory, manufacturing, products & market, employee management, hiring, finance overview, world overview and economy overview. Every value is read from the live simulation state.
 
 ### Dashboard layout
 
@@ -77,14 +77,27 @@ Responsive layout with top bar (brand, theme toggle, actions), collapsible sideb
 ├─ Corporation Overview ────────────────────────────────────────────────┤
 │  name · tier · status  │  balance · revenue · expenses · net profit    │
 │                         │  employees · reputation · productivity       │
+├─ Technology & Research ───────────────────────────────────────────────┤
+│  per category: cards with status, cost, prerequisites, progress,       │
+│  employee picker and the research / cancel action                    │
+├─ Product Development ─────────────────────────────────────────────────┤
+│  per blueprint: requirement, cost, complexity, price, progress,        │
+│  assigned staff and the develop action                               │
+├─ Resource Inventory ───────────────────────────────────────────────────┤
+│  per resource: owned · reserved · available · market price             │
+│  purchase panel with the running cost and the resource ledger         │
+├─ Manufacturing ───────────────────────────────────────────────────────┤
+│  facilities · production queue with progress · build panel · order panel│
+├─ Products & Market ────────────────────────────────────────────────────┤
+│  per product: quality · innovation · readiness · stock · sold · price  │
 ├─ Employee Management ─────────────────────────────────────────────────┤
 │  one card per employee: identity, status, skill, productivity,         │
 │  satisfaction, morale, salary                                         │
 ├─ Hire Personnel ──────────────────────────────────────────────────────┤
 │  profession · department · salary │ hiring fee │ hire button          │
 ├─ Finance Overview ─────────────────────────────────────────────────────┤
-│  balance · period revenue · expenses · payroll · next payroll          │
-│  recent transactions                                                  │
+│  balance · revenue · operating · payroll · research · development ·    │
+│  resources · manufacturing · sales · net profit · next payroll · ledger│
 ├─ World Overview ───────────────────────────────────────────────────────┤
 │  aggregate metrics │ region cards with four indicator bars each       │
 ├─ Economy Overview ─────────────────────────────────────────────────────┤
@@ -94,7 +107,7 @@ Responsive layout with top bar (brand, theme toggle, actions), collapsible sideb
 
 ### Responsive behaviour
 
-At ≤ 720 px the control panel stacks vertically, the market and transaction tables collapse from multi-column grids into two-column card layouts, the header date block is hidden and the establishment form stacks. Region, metric and employee grids reflow to a single column.
+At ≤ 720 px the control panel stacks vertically, the market, resource and transaction tables collapse from multi-column grids into two-column card layouts, the header date block is hidden and the forms stack. Region, metric, technology, product and employee grids reflow to a single column.
 
 ### Accessibility
 

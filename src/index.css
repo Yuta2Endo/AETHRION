@@ -1570,3 +1570,244 @@ select {
     align-items: stretch;
   }
 }
+
+/* ---------- Stage 04 — technology, products, resources, production, market ---------- */
+.tech-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.tech-group-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.tech-grid,
+.product-grid,
+.facility-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: var(--space-3);
+}
+
+.tech-card,
+.product-card,
+.facility-card,
+.market-product,
+.order-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--transition-fast);
+}
+
+.tech-card:hover,
+.product-card:hover,
+.facility-card:hover,
+.market-product:hover,
+.order-card:hover {
+  border-color: var(--surface-border-hover);
+}
+
+.tech-card--completed {
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.tech-card--locked {
+  opacity: 0.65;
+}
+
+.tech-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.tech-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tech-name {
+  font-family: var(--font-heading);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.tech-description {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.tech-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.tech-prereq {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--warning);
+}
+
+.tech-prereq--ready {
+  color: var(--success);
+}
+
+.tech-assigned {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.tech-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.tech-actions .field {
+  flex: 1 1 160px;
+}
+
+/* Resource table */
+.resource-table {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.resource-head,
+.resource-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.6fr) repeat(4, minmax(80px, 1fr));
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.resource-head {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.resource-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+}
+
+.resource-row:last-child {
+  border-bottom: none;
+}
+
+.resource-name {
+  color: var(--text-primary);
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+}
+
+.resource-unit {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Production orders */
+.order-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-3);
+}
+
+.order-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.order-name {
+  font-family: var(--font-heading);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.order-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Market products */
+.market-product-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-3);
+}
+
+.market-product-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.market-product-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.market-product-controls .field {
+  flex: 1 1 auto;
+}
+
+.market-product-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .resource-head {
+    display: none;
+  }
+
+  .resource-row {
+    grid-template-columns: 1fr auto;
+    row-gap: var(--space-1);
+  }
+
+  .resource-name {
+    grid-column: 1 / -1;
+  }
+}

@@ -48,6 +48,7 @@ export {
   getNetProfit,
   getPeriodNetProfit,
   isValidCorporationName,
+  recordFinancialEvent,
   resolveStatus,
   resolveTier,
   updateProgression,

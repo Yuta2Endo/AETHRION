@@ -30,6 +30,11 @@ import { CorporationOverview } from '@/ui/screens/sections/CorporationOverview';
 import { EmployeeManagement } from '@/ui/screens/sections/EmployeeManagement';
 import { FinanceOverview } from '@/ui/screens/sections/FinanceOverview';
 import { HiringPanel } from '@/ui/screens/sections/HiringPanel';
+import { ManufacturingSection } from '@/ui/screens/sections/ManufacturingSection';
+import { MarketSection } from '@/ui/screens/sections/MarketSection';
+import { ProductSection } from '@/ui/screens/sections/ProductSection';
+import { ResourceSection } from '@/ui/screens/sections/ResourceSection';
+import { TechnologySection } from '@/ui/screens/sections/TechnologySection';
 import type { SimulationStatus } from '@/core/types';
 
 /**
@@ -142,6 +147,21 @@ export function Dashboard() {
 
       {/* ------------------------------------------------ corporation overview */}
       <CorporationOverview />
+
+      {/* ------------------------------------------------- technology & research */}
+      <TechnologySection />
+
+      {/* ---------------------------------------------------- product development */}
+      <ProductSection />
+
+      {/* ------------------------------------------------------ resource inventory */}
+      <ResourceSection />
+
+      {/* ---------------------------------------------------------- manufacturing */}
+      <ManufacturingSection />
+
+      {/* ------------------------------------------------------ products & market */}
+      <MarketSection />
 
       {/* ---------------------------------------------------- employee management */}
       <EmployeeManagement />

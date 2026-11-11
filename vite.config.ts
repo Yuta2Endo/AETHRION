@@ -17,6 +17,17 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // Split the heavy vendors into their own chunks so the application
+        // chunk stays small and the vendors are cached independently.
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          motion: ['framer-motion'],
+          state: ['zustand'],
+        },
+      },
+    },
   },
   test: {
     globals: true,

@@ -1,7 +1,10 @@
 # AETHRION — Technical Architecture
 
 **Project:** AETHRION  
-**Stage:** 03 — Corporation & Employee Engines
+**Stage:** 04 — Technology & Production Engines
+
+> The exact rules of the Stage 04 engines are documented in `docs/ENGINE_RULES.md`.
+> This document describes the architecture and the layering.
 
 ## 1. Layered Architecture
 
@@ -40,11 +43,14 @@ Dependency direction is strictly downward. The simulation never imports React; t
 | Game Core | Tick loop, game state, clock, system registry | Core |
 | Simulation Runner | Binds engine + clock + state + domain engines | Game Core, Simulation |
 | World Engine | Regions, indicators, world-state evolution | Core |
-| Economy Engine | Currencies, markets, prices, supply/demand | Core |
+| Economy Engine | Currencies, markets, prices, supply/demand | Core, Contracts |
 | **Corporation Engine** | Corporation, departments, tiers, finances, ledger | Core, Contracts |
-| **Employee Engine** | Employees, professions, hiring, development | Core, Contracts, Corporation |
-| Technology Engine | Tech tree, research, unlocks | Core |
-| Production Engine | Factories, products, supply chains | Core |
+| **Employee Engine** | Employees, professions, hiring, development, payroll | Core, Contracts, Corporation |
+| **Technology Engine** | Technology tree, research projects, unlocks | Core, Employee Engine |
+| **Product Engine** | Product catalogue, development projects, quality | Core, Technology Engine, Contracts |
+| **Resource Engine** | Resource inventory, pricing, reservations, ledger | Core, Economy Engine, Contracts |
+| **Production Engine** | Facilities, production orders, manufacturing | Core, Product Engine, Contracts |
+| **Market Engine** | Listings, demand, sales, corporate market signal | Core, Product Engine, Contracts |
 | City Engine | Cities, buildings | Core |
 | Events Engine | World events, news | Core |
 | Competitor AI Engine | AI corporations | Core |
@@ -116,25 +122,36 @@ Two distinct Zustand stores:
 | `economy` | Economy Engine | Currencies, commodities, prices |
 | `corporation` | Corporation Engine | Corporation record, finances, ledger |
 | `employees` | Employee Engine | Employee records |
+| `technology` | Technology Engine | Unlocked technologies, research projects, history |
+| `products` | Product Engine | Product instances and their development state |
+| `resources` | Resource Engine | Resource balances, reservations, ledger |
+| `production` | Production Engine | Facilities and production orders |
+| `market` | Market Engine | Market listings and their sales results |
 | `simulation` | Game Core | Status, tick, simulated time, date, speed |
 
 The game store contains **no domain logic** — it stores the results produced by the domain modules and exposes controlled update actions. It does **not** use the zustand `persist` middleware; persistent storage is an IndexedDB concern reserved for Stage 08.
 
-**Ownership rule:** the Corporation Engine never stores employee data. Headcount and workforce statistics are *derived* by `getCorporationStatistics(corporation, workforce)`, which accepts a minimal structural `WorkforceMember` view — so the Corporation Engine does not import the Employee Engine.
+**Ownership rule:** the Corporation Engine never stores employee data. Headcount and workforce statistics are *derived* by `getCorporationStatistics(corporation, workforce)`, which accepts a minimal structural `WorkforceMember` view — so the Corporation Engine does not import the Employee Engine. The same principle applies to the Resource Engine (it never stores product or production data) and to the Product Engine (it never stores resource balances).
 
 `src/game/state/selectors.ts` holds typed selectors returning primitives or stable slice references, keeping re-renders narrow.
 
-## 7. Command Layer (`src/game/commands.ts`)
+## 7. Command Layer (`src/game/commands/`)
 
 The **only** entry point for player actions. The interface calls commands; commands validate, apply the domain rules and write the result to the game state exactly once. No simulation rule is ever executed inside a React component.
 
-| Command | Behaviour |
-|---------|-----------|
-| `createCorporation({ name })` | Validates the name, creates the single player corporation, links it as `playerCorporationId` |
-| `hireEmployee({ profession, department, salary? })` | Validates profession, department availability, capacity, salary and funds; creates the employee and charges the hiring fee |
-| `dismissEmployee(id)` | Marks the employee as departed |
+Stage 04 split the single `commands.ts` file into a focused module per domain — the file would otherwise have grown past 700 lines:
 
-Every command returns a `Result<T, AppError>` so the interface can display a precise validation message.
+| Module | Commands |
+|--------|----------|
+| `corporationCommands.ts` | `createCorporation`, `hireEmployee`, `dismissEmployee` |
+| `technologyCommands.ts` | `startResearch`, `cancelResearch` |
+| `productCommands.ts` | `startProductDevelopment`, `assignProductEmployees`, `setProductPrice`, `setProductSalesActive` |
+| `resourceCommands.ts` | `purchaseResource` |
+| `productionCommands.ts` | `createFacility`, `assignFacilityEmployees`, `startProduction`, `cancelProduction` |
+| `shared.ts` | `failure`, `requireCorporation`, `chargeCorporation`, `storeCorporation`, `validateEmployeeAssignment` |
+| `index.ts` | The aggregated `commands` object |
+
+Every command returns a `Result<T, AppError>` so the interface can display a precise validation message. **A failed command leaves the game state unchanged** — including the case where a production order cannot be charged: the resource reservation is rolled back.
 
 ## 8. Corporation Engine (`src/simulation/corporation/`)
 
@@ -237,24 +254,31 @@ Validated in order: profession → department → department availability at the
 
 ## 11. Simulation Integration
 
-`src/game/simulationRunner.ts` registers four systems in a fixed order:
+`src/game/simulationRunner.ts` registers nine systems in a fixed order:
 
 ```
-1. Game Clock      — advances simulated time (engine-owned, before the systems)
-2. World Engine    — order 10
-3. Economy Engine  — order 20   ← consumes the world produced in step 2
-4. Employee Engine — order 30   ← develops the workforce
-5. Corporation Engine — order 40
+1. Game Clock        — advances simulated time (engine-owned, before the systems)
+2. World Engine      — order 10
+3. Economy Engine    — order 20   ← consumes the world of step 2 and the corporate market signal
+4. Employee Engine   — order 30   ← develops the workforce
+5. Technology Engine — order 40   ← research uses the workforce of step 4
+6. Product Engine    — order 50   ← development uses the unlocked technologies
+7. Resource Engine   — order 60   ← resource bookkeeping
+8. Production Engine — order 70   ← consumes the reserved resources
+9. Market Engine     — order 80   ← sells the finished goods
+10. Corporation Engine— order 90
       ├─ accrues revenue and operating costs from the workforce productivity
       ├─ processes the payroll of the current period (at most once)
       └─ updates reputation, tier and status
 ```
 
-The Stage 02 **world → economy** order is preserved. The workforce developed in the same tick feeds the corporation in that tick — verified by an integration test that recomputes the expected revenue independently.
+The Stage 02 **world → economy** order is preserved. The workforce developed in the same tick feeds the corporation in that tick — verified by an integration test that recomputes the expected revenue independently. The full chain **research → unlock → development → resource purchase → production → inventory → market sale → revenue** is covered by an end-to-end integration test.
+
+The exact rules of every engine are documented in `docs/ENGINE_RULES.md`.
 
 ## 12. Economy Integration Boundary
 
-The Corporation Engine can produce a `CorporateMarketSignal` (demand pressure, supply pressure, productivity). The Economy Engine does **not** consume it yet: the market model has no notion of goods that could be offered — products and production arrive in Stage 04. Wiring it now would be an artificial economic effect, so the typed contract is defined and the connection is documented as deferred.
+The Corporation Engine produces a `CorporateMarketSignal` (demand pressure, supply pressure, productivity) and the Economy Engine **now consumes it**: the signal modulates the commodity supply and demand by up to 15 %. Without a signal both factors are exactly 1 and the market behaves exactly as in Stage 02 — this is covered by a test.
 
 ## 13. Event Communication
 

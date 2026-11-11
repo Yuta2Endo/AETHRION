@@ -1,8 +1,10 @@
 # AETHRION — Game Design Overview
 
 **Project:** AETHRION  
-**Stage:** 03 — Corporation & Employee Engines  
-**Status:** World, Economy, Corporation and Employee systems implemented; all other gameplay systems remain in later stages.
+**Stage:** 04 — Technology & Production Engines  
+**Status:** World, Economy, Corporation, Employee, Technology, Product, Resource, Production and Market systems implemented; the remaining gameplay systems stay in later stages.
+
+> The exact rules of the Stage 04 engines are documented in `docs/ENGINE_RULES.md`.
 
 ## 1. Genre & Vision
 
@@ -14,12 +16,12 @@ The player starts with a small technology corporation and builds a global empire
 
 - Establish corporations *(Stage 03 — implemented)*
 - Hire and manage employees *(Stage 03 — implemented)*
-- Develop technologies (research tree) *(Stage 04)*
-- Build factories and research centers *(Stage 04)*
-- Manufacture products *(Stage 04)*
-- Manage supply chains *(Stage 04)*
+- Develop technologies (research tree) *(Stage 04 — implemented)*
+- Build factories and research centers *(Stage 04 — manufacturing facilities implemented)*
+- Manufacture products *(Stage 04 — implemented)*
+- Manage supply chains *(Stage 04 — baseline: resources, reservations, production)*
 - Develop cities *(Stage 05)*
-- Influence global markets *(Stage 02 baseline)*
+- Influence global markets *(Stage 02 baseline, Stage 04 product sales)*
 - Compete against AI corporations *(Stage 06)*
 - Expand across world regions *(Stage 02 baseline)*
 - Shape the future of civilization
@@ -36,6 +38,12 @@ The player starts with a small technology corporation and builds a global empire
 | Corporation Engine | Corporation, departments, tiers, finances, ledger | **Implemented (Stage 03)** |
 | Employee Engine | Employees, professions, hiring, development | **Implemented (Stage 03)** |
 | Payroll | Periodic settlement bound to the simulated clock | **Implemented (Stage 03)** |
+| Technology Engine | Technology tree, research projects, unlocks | **Implemented (Stage 04)** |
+| Product Engine | Product catalogue, development projects, quality | **Implemented (Stage 04)** |
+| Resource Engine | Resource inventory, pricing, reservations | **Implemented (Stage 04)** |
+| Production Engine | Facilities, production orders, manufacturing | **Implemented (Stage 04)** |
+| Market Engine | Listings, demand, sales, corporate market signal | **Implemented (Stage 04)** |
+| City Engine | Cities, buildings, urban development | Typed interface only |
 | Technology Engine | Technology tree, research, unlocks | Typed interface only |
 | Production Engine | Factories, products, manufacturing, supply chains | Typed interface only |
 | City Engine | Cities, buildings, urban development | Typed interface only |
@@ -169,3 +177,33 @@ productivity  = clamp(skill × profession.weight + (satisfaction − 50) × 0.2,
 - Expensive simulation tasks run in Web Workers (via Comlink) when justified *(Stage 07)*.
 - Typed interfaces between modules; no circular dependencies.
 - All modules testable in isolation.
+
+## 10. The Economic Gameplay Loop (Stage 04)
+
+Stage 04 introduces the first complete economic loop. Every step is driven by the simulated clock
+and by real employee contributions — nothing is granted.
+
+```
+Research → Technology Unlock → Product Development → Resource Acquisition
+        → Manufacturing → Inventory → Market Sales → Revenue → Corporate Growth
+```
+
+| Step | What the player does | What the simulation does |
+|------|----------------------|--------------------------|
+| **Research** | Picks a technology, assigns a researcher, pays the research cost | The researcher's skill and productivity drive the progress; the technology unlocks and its effects apply to the whole corporation |
+| **Technology Unlock** | — | The production efficiency, research speed, quality bonus, market reach and resource yield multipliers become active |
+| **Product Development** | Picks a product blueprint that the unlocked technology allows, assigns engineers, pays the development cost | The engineers' skill and productivity drive the progress; on completion the quality, innovation and market readiness are computed from transparent factors |
+| **Resource Acquisition** | Buys raw materials, metals, electronics, energy, components, advanced materials, research data and industrial chemicals from the market | The price follows the linked market commodity; the purchase is charged to the corporate ledger and the inventory grows |
+| **Manufacturing** | Builds a facility, picks a finished product, sets a quantity | The resources are reserved, the duration and the operating cost are computed from the facility efficiency and the assigned workforce; the order progresses with the simulated time |
+| **Inventory** | — | The reserved resources are consumed and the finished units enter the product inventory |
+| **Market Sales** | Sets a price and offers the product on the market | The demand follows the commercial activity, the quality, the price and the market reach; the sales are limited by the inventory; the revenue reaches the corporate ledger in batches |
+| **Corporate Growth** | — | The revenue, the expenses and the ledger update the balance, the net profit, the reputation and the corporate tier |
+
+**Design guarantees**
+
+- No money is created without a recorded transaction.
+- No resource quantity ever becomes negative and a failed operation never partially consumes.
+- A production order can never complete twice and a payroll period can never be paid twice.
+- Quality and prices are computed from documented formulas — there is no hidden randomness.
+- The world still influences the market: a more developed world raises the commercial activity,
+  which raises the demand for the corporation's products.

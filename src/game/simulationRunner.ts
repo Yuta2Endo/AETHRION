@@ -2,13 +2,17 @@
  * Simulation runner — binds the Game Core, the Game Clock, the game state
  * and the domain engines into one running simulation.
  *
- * Tick execution order (deterministic):
- *   1. Game Clock      — advances simulated time (engine-owned, before systems)
- *   2. World Engine    — evolves regions from the new simulated time
- *   3. Economy Engine  — updates markets using the world produced in step 2
- *   4. Employee Engine — develops the workforce and records development history
- *   5. Corporation Engine — accrues revenue and operating costs, processes
- *      payroll for the period and updates the corporate progression
+ * Tick execution order (deterministic, Stage 04):
+ *   1. Game Clock        — advances simulated time (engine-owned, before systems)
+ *   2. World Engine      — order 10
+ *   3. Economy Engine    — order 20  ← consumes the world produced in step 2
+ *   4. Employee Engine   — order 30  ← develops the workforce
+ *   5. Technology Engine — order 40  ← research uses the workforce of step 4
+ *   6. Product Engine    — order 50  ← development uses the unlocked technologies
+ *   7. Resource Engine   — order 60  ← resource bookkeeping
+ *   8. Production Engine — order 70  ← consumes the reserved resources
+ *   9. Market Engine     — order 80  ← sells the finished goods
+ *  10. Corporation Engine— order 90  ← accrues the finances, payroll, progression
  *
  * The runner owns the wiring only. Every rule lives in `src/simulation/*`,
  * every lifecycle rule lives in `src/game/engine/*` and every state write
@@ -24,6 +28,7 @@ import { useGameStore } from '@/game/state/gameStore';
 import {
   accrueFinances,
   getPlayerCorporation,
+  recordFinancialEvent,
   updateProgression,
   type CorporationContext,
 } from '@/simulation/corporation';
@@ -34,6 +39,15 @@ import {
   getActiveEmployees,
   getPayrollPeriod,
 } from '@/simulation/employees';
+import {
+  buildCorporateMarketSignal,
+  ensureListing,
+  processSales,
+} from '@/simulation/market';
+import { advanceDevelopment } from '@/simulation/products';
+import { advanceProduction, getTotalCapacity } from '@/simulation/production';
+import { advanceResources, consumeResources } from '@/simulation/resources';
+import { advanceResearch, getUnlockedEffects } from '@/simulation/technology';
 import { evolveWorld, getMarketActivityIndex } from '@/simulation/world';
 
 /**
@@ -44,7 +58,12 @@ export const SIMULATION_SYSTEM_ORDER = {
   world: 10,
   economy: 20,
   employees: 30,
-  corporation: 40,
+  technology: 40,
+  products: 50,
+  resources: 60,
+  production: 70,
+  market: 80,
+  corporation: 90,
 } as const;
 
 /** Speed multipliers offered by the interface. */
@@ -54,7 +73,7 @@ export interface SimulationRunnerOptions {
   clock?: GameClock;
   scheduler?: EngineScheduler;
   tickDurationMs?: number;
-  /** Skip registering the world / economy systems (used by unit tests). */
+  /** Skip registering the simulation systems (used by unit tests). */
   registerSystems?: boolean;
 }
 
@@ -103,10 +122,27 @@ export class SimulationRunner {
       order: SIMULATION_SYSTEM_ORDER.economy,
       update: (context) => {
         const store = useGameStore.getState();
+        const employees = getActiveEmployees(store.employees);
+        const workforceProductivity =
+          employees.length > 0
+            ? employees.reduce((sum, employee) => sum + employee.productivity, 0) /
+              employees.length
+            : 0;
+
+        // The corporate market signal is the documented integration boundary
+        // between the corporation and the market.
+        const signal = buildCorporateMarketSignal({
+          workforceProductivity,
+          marketReach: getUnlockedEffects(store.technology).marketReach ?? 1,
+          productionCapacity: getTotalCapacity(store.production),
+          activeProducts: store.market.listings.filter((listing) => listing.active).length,
+        });
+
         const next = updateEconomy(store.economy, {
           tick: context.tick,
           deltaMs: context.deltaMs,
           marketActivityIndex: getMarketActivityIndex(store.world),
+          corporateSignal: signal,
         });
         store.applyEconomyState(next);
       },
@@ -125,6 +161,156 @@ export class SimulationRunner {
           periodId: period.id,
         });
         store.applyEmployeeState(next);
+      },
+    });
+
+    this.engine.registerSystem({
+      name: 'technology',
+      order: SIMULATION_SYSTEM_ORDER.technology,
+      update: (context) => {
+        const store = useGameStore.getState();
+        const next = advanceResearch(
+          store.technology,
+          {
+            tick: context.tick,
+            deltaMs: context.deltaMs,
+            simTimeMs: context.simTimeMs,
+          },
+          store.employees.employees,
+        );
+        store.applyTechnologyState(next);
+      },
+    });
+
+    this.engine.registerSystem({
+      name: 'products',
+      order: SIMULATION_SYSTEM_ORDER.products,
+      update: (context) => {
+        const store = useGameStore.getState();
+        const next = advanceDevelopment(
+          store.products,
+          store.technology,
+          {
+            tick: context.tick,
+            deltaMs: context.deltaMs,
+            simTimeMs: context.simTimeMs,
+          },
+          store.employees.employees,
+        );
+        store.applyProductState(next);
+      },
+    });
+
+    this.engine.registerSystem({
+      name: 'resources',
+      order: SIMULATION_SYSTEM_ORDER.resources,
+      update: (context) => {
+        const store = useGameStore.getState();
+        const next = advanceResources(store.resources, {
+          tick: context.tick,
+          deltaMs: context.deltaMs,
+        });
+        store.applyResourceState(next);
+      },
+    });
+
+    this.engine.registerSystem({
+      name: 'production',
+      order: SIMULATION_SYSTEM_ORDER.production,
+      update: (context) => {
+        const store = useGameStore.getState();
+        const advanced = advanceProduction(
+          store.production,
+          {
+            tick: context.tick,
+            deltaMs: context.deltaMs,
+            simTimeMs: context.simTimeMs,
+          },
+          store.employees.employees,
+        );
+
+        if (advanced.completed.length === 0) {
+          if (advanced.state !== store.production) {
+            store.applyProductionState(advanced.state);
+          }
+          return;
+        }
+
+        let resources = store.resources;
+        let products = store.products;
+
+        for (const order of advanced.completed) {
+          // The reserved resources leave the inventory.
+          const consumed = consumeResources(
+            resources,
+            order.reservedResources,
+            context.simTimeMs,
+          );
+          if (consumed.ok) {
+            resources = consumed.value.state;
+          }
+
+          // The finished goods enter the product inventory.
+          products = {
+            ...products,
+            instances: products.instances.map((instance) =>
+              instance.id === order.productInstanceId
+                ? { ...instance, inventory: instance.inventory + order.produced }
+                : instance,
+            ),
+          };
+        }
+
+        store.applyProductionState(advanced.state);
+        store.applyResourceState(resources);
+        store.applyProductState(products);
+      },
+    });
+
+    this.engine.registerSystem({
+      name: 'market',
+      order: SIMULATION_SYSTEM_ORDER.market,
+      update: (context) => {
+        const store = useGameStore.getState();
+        const effects = getUnlockedEffects(store.technology);
+
+        // Every finished product offered on the market needs a listing.
+        let market = store.market;
+        for (const instance of store.products.instances) {
+          if (instance.status === 'ready' && instance.salesActive) {
+            market = ensureListing(market, instance.id, instance.price, true);
+          }
+        }
+
+        const sales = processSales(store.products, market, {
+          deltaMs: context.deltaMs,
+          marketActivityIndex: getMarketActivityIndex(store.world),
+          marketReach: effects.marketReach ?? 1,
+          simTimeMs: context.simTimeMs,
+        });
+
+        store.applyProductState(sales.products);
+        store.applyMarketState(sales.market);
+
+        if (sales.revenueToRecord > 0) {
+          const corporation = getPlayerCorporation(store.corporation);
+          if (corporation) {
+            const next = recordFinancialEvent(corporation, {
+              type: 'sales',
+              amount: sales.revenueToRecord,
+              description: 'Market sales',
+              simTimeMs: context.simTimeMs,
+            });
+            if (next !== corporation) {
+              store.applyCorporationState({
+                ...store.corporation,
+                corporations: store.corporation.corporations.map((candidate) =>
+                  candidate.id === next.id ? next : candidate,
+                ),
+              });
+            }
+          }
+        }
       },
     });
 

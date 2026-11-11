@@ -51,7 +51,13 @@ export type TransactionType =
   | 'payroll-missed'
   | 'revenue'
   | 'operating'
-  | 'milestone';
+  | 'milestone'
+  /** Stage 04 — research, development, resources, manufacturing and sales. */
+  | 'research'
+  | 'development'
+  | 'resource'
+  | 'production'
+  | 'sales';
 
 export interface CorporationTransaction {
   id: string;
@@ -81,10 +87,23 @@ export interface FinancialSnapshot {
 export interface CorporationFinances {
   /** Cash available. Never negative. */
   balance: number;
+  /** Total revenue — the sum of the workforce and the sales revenue. */
   lifetimeRevenue: number;
+  /** Revenue produced by the workforce productivity. */
+  lifetimeWorkforceRevenue: number;
+  /** Revenue produced by selling products on the market. */
+  lifetimeSalesRevenue: number;
   lifetimeOperatingExpenses: number;
   lifetimePayrollExpenses: number;
   lifetimeHiringCosts: number;
+  /** Research expenses (Stage 04). */
+  lifetimeResearchExpenses: number;
+  /** Product development expenses (Stage 04). */
+  lifetimeDevelopmentExpenses: number;
+  /** Resource purchases (Stage 04). */
+  lifetimeResourceExpenses: number;
+  /** Manufacturing expenses (Stage 04). */
+  lifetimeProductionExpenses: number;
   /** Revenue accrued since the last payroll period closed. */
   periodRevenue: number;
   periodOperatingExpenses: number;
@@ -235,6 +254,12 @@ export function isValidCorporation(corporation: Corporation): boolean {
   if (!finances) return false;
   if (!isFiniteNumber(finances.balance) || finances.balance < 0) return false;
   if (!isFiniteNumber(finances.lifetimeRevenue) || finances.lifetimeRevenue < 0) return false;
+  if (!isFiniteNumber(finances.lifetimeWorkforceRevenue) || finances.lifetimeWorkforceRevenue < 0) {
+    return false;
+  }
+  if (!isFiniteNumber(finances.lifetimeSalesRevenue) || finances.lifetimeSalesRevenue < 0) {
+    return false;
+  }
   if (!isFiniteNumber(finances.lifetimeOperatingExpenses) || finances.lifetimeOperatingExpenses < 0) {
     return false;
   }
@@ -242,6 +267,18 @@ export function isValidCorporation(corporation: Corporation): boolean {
     return false;
   }
   if (!isFiniteNumber(finances.lifetimeHiringCosts) || finances.lifetimeHiringCosts < 0) return false;
+  if (!isFiniteNumber(finances.lifetimeResearchExpenses) || finances.lifetimeResearchExpenses < 0) {
+    return false;
+  }
+  if (!isFiniteNumber(finances.lifetimeDevelopmentExpenses) || finances.lifetimeDevelopmentExpenses < 0) {
+    return false;
+  }
+  if (!isFiniteNumber(finances.lifetimeResourceExpenses) || finances.lifetimeResourceExpenses < 0) {
+    return false;
+  }
+  if (!isFiniteNumber(finances.lifetimeProductionExpenses) || finances.lifetimeProductionExpenses < 0) {
+    return false;
+  }
   if (!isFiniteNumber(finances.periodRevenue) || finances.periodRevenue < 0) return false;
   if (!isFiniteNumber(finances.periodOperatingExpenses) || finances.periodOperatingExpenses < 0) {
     return false;

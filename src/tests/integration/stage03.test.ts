@@ -29,10 +29,17 @@ describe('Stage 03 — simulation integration', () => {
   it('registers the corporation and employee systems in the documented order', () => {
     const systems = runner.getEngine().getSystems();
 
+    // Stage 04 inserted the technology, product, resource, production and
+    // market systems between the employees and the corporation.
     expect(systems.map((system) => system.name)).toEqual([
       'world',
       'economy',
       'employees',
+      'technology',
+      'products',
+      'resources',
+      'production',
+      'market',
       'corporation',
     ]);
     expect(SIMULATION_SYSTEM_ORDER.employees).toBeGreaterThan(SIMULATION_SYSTEM_ORDER.economy);

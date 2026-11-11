@@ -1,24 +1,41 @@
 /**
- * Technology Engine module (Stage 01 placeholder).
- * Responsible for technology tree, research, and unlocks.
- * Typed interface only — no implementation in Stage 01.
+ * Technology Research Engine — public surface.
+ * Stage 04 implementation.
  */
 
-export interface Technology {
-  id: string;
-  name: string;
-  level: number;
-  unlocked: boolean;
-}
+export {
+  MAX_RESEARCH_HISTORY,
+  MAX_RESEARCH_PROJECTS,
+  TECHNOLOGIES,
+  TECHNOLOGY_CATEGORIES,
+  createInitialTechnologyState,
+  findResearchProject,
+  getTechnologyDefinition,
+  isValidTechnologyDefinition,
+  isValidTechnologyState,
+} from './technologyState';
+export type {
+  ResearchHistoryEntry,
+  ResearchProject,
+  ResearchProjectStatus,
+  TechnologyCategory,
+  TechnologyDefinition,
+  TechnologyEffects,
+  TechnologyId,
+  TechnologyState,
+  TechnologyStatus,
+} from './technologyState';
 
-export interface TechnologyState {
-  technologies: Technology[];
-}
-
-export const defaultTechnologyState: TechnologyState = {
-  technologies: [],
-};
-
-export function getTechnologyState(): TechnologyState {
-  return { ...defaultTechnologyState };
-}
+export {
+  advanceResearch,
+  canStartResearch,
+  cancelResearch,
+  getEmployeeContribution,
+  getMissingPrerequisites,
+  getResearchContribution,
+  getTechnologiesByCategory,
+  getTechnologyStatus,
+  getUnlockedEffects,
+  startResearch,
+} from './technologyRules';
+export type { ResearchContext, StartResearchInput } from './technologyRules';

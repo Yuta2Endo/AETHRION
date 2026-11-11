@@ -1,37 +1,19 @@
 /**
- * Command layer — the only entry point for player actions.
- *
- * The interface calls commands; commands apply domain rules and write the
- * result to the game state. No simulation rule is ever executed inside a
- * React component.
- *
- * Commands are pure with respect to the store: they read the current state,
- * validate, compute and write back exactly once.
+ * Corporation commands — establish the corporation and manage the workforce.
  */
 
 import { logger } from '@/core/logging/logger';
 import type { AppError, Result } from '@/core/types';
 import { useGameStore } from '@/game/state/gameStore';
 import type { DepartmentId } from '@/simulation/contracts';
-import {
-  applyTransaction,
-  createCorporation,
-  getPlayerCorporation,
-  type Corporation,
-} from '@/simulation/corporation';
+import { createCorporation, type Corporation } from '@/simulation/corporation';
 import {
   dismissEmployee,
   hireEmployee,
   type Employee,
   type ProfessionId,
 } from '@/simulation/employees';
-
-function failure(code: string, message: string): { ok: false; error: AppError } {
-  return {
-    ok: false,
-    error: { code, message, fatal: false, context: {}, timestamp: Date.now() },
-  };
-}
+import { chargeCorporation, failure, storeCorporation } from './shared';
 
 export interface CreateCorporationCommand {
   name: string;
@@ -81,7 +63,9 @@ export function hireEmployeeCommand(
   input: HireEmployeeCommand,
 ): Result<Employee, AppError> {
   const store = useGameStore.getState();
-  const corporation = getPlayerCorporation(store.corporation);
+  const corporation = store.corporation.corporations.find(
+    (candidate) => candidate.id === store.corporation.playerCorporationId,
+  );
 
   if (!corporation) {
     return failure('CORPORATION_NOT_FOUND', 'Establish a corporation before hiring staff.');
@@ -99,29 +83,19 @@ export function hireEmployeeCommand(
     return hired;
   }
 
-  const withCost = applyTransaction(corporation, {
+  const charged = chargeCorporation(corporation, {
     type: 'hiring',
     amount: -hired.value.cost,
     description: `Hiring fee — ${hired.value.employee.name}`,
     simTimeMs: store.simulation.simTimeMs,
   });
 
-  const withAccounting: Corporation = {
-    ...withCost,
-    finances: {
-      ...withCost.finances,
-      lifetimeHiringCosts: Math.round(
-        (withCost.finances.lifetimeHiringCosts + hired.value.cost) * 100,
-      ) / 100,
-    },
-  };
+  if (!charged.ok) {
+    logger.warn('Command hireEmployee rejected', { code: charged.error.code });
+    return charged;
+  }
 
-  store.applyCorporationState({
-    ...store.corporation,
-    corporations: store.corporation.corporations.map((candidate) =>
-      candidate.id === withAccounting.id ? withAccounting : candidate,
-    ),
-  });
+  storeCorporation(charged.value);
   store.applyEmployeeState(hired.value.state);
 
   logger.info('Employee hired', {
@@ -136,9 +110,7 @@ export function hireEmployeeCommand(
 /**
  * Dismisses an employee from the player corporation.
  */
-export function dismissEmployeeCommand(
-  employeeId: string,
-): Result<Employee, AppError> {
+export function dismissEmployeeCommand(employeeId: string): Result<Employee, AppError> {
   const store = useGameStore.getState();
 
   const result = dismissEmployee(store.employees, employeeId);
@@ -151,12 +123,3 @@ export function dismissEmployeeCommand(
   logger.info('Employee dismissed', { id: employeeId });
   return { ok: true, value: result.value.employee };
 }
-
-/**
- * All player commands, grouped for convenient access from the interface.
- */
-export const commands = {
-  createCorporation: createPlayerCorporation,
-  hireEmployee: hireEmployeeCommand,
-  dismissEmployee: dismissEmployeeCommand,
-};

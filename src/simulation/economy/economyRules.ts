@@ -18,6 +18,7 @@
 
 import { logger } from '@/core/logging/logger';
 import { clamp, isFiniteNumber, roundTo } from '@/core/utils';
+import type { CorporateMarketSignal } from '@/simulation/contracts';
 import {
   isValidEconomyState,
   type EconomyState,
@@ -32,6 +33,12 @@ export interface EconomyContext {
   deltaMs: number;
   /** Aggregate commercial activity of the world, 0..100. */
   marketActivityIndex: number;
+  /**
+   * The corporate market signal (Stage 04).
+   *
+   * Optional: when it is absent the market behaves exactly as in Stage 02.
+   */
+  corporateSignal?: CorporateMarketSignal;
 }
 
 export const ECONOMY_RULES = {
@@ -45,19 +52,24 @@ export const ECONOMY_RULES = {
   demandActivityWeight: 0.5,
   /** Demand above this multiple of the reference is treated as saturated. */
   demandSaturation: 3,
+  /** How strongly the corporate supply signal amplifies the commodity supply. */
+  corporateSupplyWeight: 0.15,
+  /** How strongly the corporate demand signal amplifies the commodity demand. */
+  corporateDemandWeight: 0.15,
 } as const;
 
 function updateCommodity(
   commodity: MarketCommodity,
   hours: number,
   demandFactor: number,
+  supplyFactor: number,
 ): MarketCommodity {
   const supplyRatio = commodity.supply / commodity.baseSupply;
   const demandRatio = commodity.demand / commodity.baseDemand;
 
   const supply = Math.max(
     0,
-    commodity.supply + commodity.supplyGrowth * hours * supplyRatio,
+    commodity.supply + commodity.supplyGrowth * hours * supplyRatio * supplyFactor,
   );
 
   const rawDemand =
@@ -116,8 +128,24 @@ export function updateEconomy(state: EconomyState, context: EconomyContext): Eco
     1 +
     (clamp(context.marketActivityIndex, 0, 100) / 100) * ECONOMY_RULES.demandActivityWeight;
 
+  // The corporate market signal modulates the commodity supply and demand.
+  // Without the signal both factors are exactly 1 and the market behaves
+  // exactly as in Stage 02.
+  const signal = context.corporateSignal;
+  const supplyFactor =
+    1 +
+    (signal ? (clamp(signal.supplyPressure, 0, 100) / 100) * ECONOMY_RULES.corporateSupplyWeight : 0);
+  const corporateDemandFactor =
+    1 +
+    (signal ? (clamp(signal.demandPressure, 0, 100) / 100) * ECONOMY_RULES.corporateDemandWeight : 0);
+
   const commodities = state.commodities.map((commodity) =>
-    updateCommodity(commodity, hours, activityFactor),
+    updateCommodity(
+      commodity,
+      hours,
+      activityFactor * corporateDemandFactor,
+      supplyFactor,
+    ),
   );
 
   const supplyIndex =

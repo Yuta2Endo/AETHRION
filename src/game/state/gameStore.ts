@@ -24,6 +24,11 @@ import {
 } from '@/simulation/corporation';
 import { createInitialEconomy, type EconomyState } from '@/simulation/economy';
 import { createInitialEmployeeState, type EmployeeState } from '@/simulation/employees';
+import { createInitialMarketState, type MarketState } from '@/simulation/market';
+import { createInitialProductState, type ProductState } from '@/simulation/products';
+import { createInitialProductionState, type ProductionState } from '@/simulation/production';
+import { createInitialResourceState, type ResourceState } from '@/simulation/resources';
+import { createInitialTechnologyState, type TechnologyState } from '@/simulation/technology';
 import { createInitialWorld, type WorldState } from '@/simulation/world';
 
 /** The player's empire — the global identity the corporation operates under. */
@@ -61,6 +66,16 @@ export interface GameStoreState {
   corporation: CorporationState;
   /** The employee records. */
   employees: EmployeeState;
+  /** Research projects and unlocked technologies. */
+  technology: TechnologyState;
+  /** Product development projects and finished products. */
+  products: ProductState;
+  /** Resource inventory and the resource ledger. */
+  resources: ResourceState;
+  /** Manufacturing facilities and production orders. */
+  production: ProductionState;
+  /** Market listings of the finished products. */
+  market: MarketState;
   simulation: SimulationMeta;
 
   /** Controlled updates — the store stores results, it never computes them. */
@@ -68,6 +83,11 @@ export interface GameStoreState {
   applyEconomyState: (next: EconomyState) => void;
   applyCorporationState: (next: CorporationState) => void;
   applyEmployeeState: (next: EmployeeState) => void;
+  applyTechnologyState: (next: TechnologyState) => void;
+  applyProductState: (next: ProductState) => void;
+  applyResourceState: (next: ResourceState) => void;
+  applyProductionState: (next: ProductionState) => void;
+  applyMarketState: (next: MarketState) => void;
   applySimulationMeta: (next: Partial<SimulationMeta>) => void;
   applyEmpire: (next: Partial<EmpireState>) => void;
   /** Restores the initial simulation state. */
@@ -97,12 +117,22 @@ export const useGameStore = create<GameStoreState>()((set) => ({
   economy: createInitialEconomy(),
   corporation: createInitialCorporationState(),
   employees: createInitialEmployeeState(),
+  technology: createInitialTechnologyState(),
+  products: createInitialProductState(),
+  resources: createInitialResourceState(),
+  production: createInitialProductionState(),
+  market: createInitialMarketState(),
   simulation: { ...INITIAL_SIMULATION },
 
   applyWorldState: (next) => set({ world: next }),
   applyEconomyState: (next) => set({ economy: next }),
   applyCorporationState: (next) => set({ corporation: next }),
   applyEmployeeState: (next) => set({ employees: next }),
+  applyTechnologyState: (next) => set({ technology: next }),
+  applyProductState: (next) => set({ products: next }),
+  applyResourceState: (next) => set({ resources: next }),
+  applyProductionState: (next) => set({ production: next }),
+  applyMarketState: (next) => set({ market: next }),
   applySimulationMeta: (next) =>
     set((state) => ({ simulation: { ...state.simulation, ...next } })),
   applyEmpire: (next) => set((state) => ({ empire: { ...state.empire, ...next } })),
@@ -113,8 +143,25 @@ export const useGameStore = create<GameStoreState>()((set) => ({
       economy: createInitialEconomy(),
       corporation: createInitialCorporationState(),
       employees: createInitialEmployeeState(),
+      technology: createInitialTechnologyState(),
+      products: createInitialProductState(),
+      resources: createInitialResourceState(),
+      production: createInitialProductionState(),
+      market: createInitialMarketState(),
       simulation: { ...INITIAL_SIMULATION },
     }),
 }));
 
-export type { WorldState, EconomyState, CorporationState, EmployeeState, GameDate, SimulationStatus };
+export type {
+  WorldState,
+  EconomyState,
+  CorporationState,
+  EmployeeState,
+  TechnologyState,
+  ProductState,
+  ResourceState,
+  ProductionState,
+  MarketState,
+  GameDate,
+  SimulationStatus,
+};

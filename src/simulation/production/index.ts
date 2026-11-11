@@ -1,26 +1,41 @@
 /**
- * Production Engine module (Stage 01 placeholder).
- * Responsible for factories, products, manufacturing, and supply chains.
- * Typed interface only — no implementation in Stage 01.
+ * Production Engine — public surface.
+ * Stage 04 implementation.
  */
 
-export interface Product {
-  id: string;
-  name: string;
-  cost: number;
-  price: number;
-}
+export {
+  FACILITY_DEFINITIONS,
+  MAX_BATCH_MULTIPLE,
+  MAX_PRODUCTION_ORDERS,
+  MAX_WORKFORCE_EFFICIENCY_BONUS,
+  WORKFORCE_EFFICIENCY_PER_PRODUCTIVITY,
+  createInitialProductionState,
+  facilitySupports,
+  findFacility,
+  findProductionOrder,
+  getFacilityDefinition,
+  isValidProductionState,
+} from './productionState';
+export type {
+  Facility,
+  FacilityDefinition,
+  FacilityStatus,
+  FacilityType,
+  ProductionOrder,
+  ProductionOrderStatus,
+  ProductionState,
+} from './productionState';
 
-export interface ProductionState {
-  products: Product[];
-  factories: number;
-}
-
-export const defaultProductionState: ProductionState = {
-  products: [],
-  factories: 0,
-};
-
-export function getProductionState(): ProductionState {
-  return { ...defaultProductionState };
-}
+export {
+  advanceProduction,
+  assignFacilityEmployees,
+  cancelProduction,
+  createFacility,
+  getEffectiveEfficiency,
+  getOrderResourceRequirement,
+  getProductionDurationMs,
+  getTotalCapacity,
+  startProduction,
+  unassignFacilityEmployee,
+} from './productionRules';
+export type { CreateFacilityInput, ProductionContext, StartProductionInput } from './productionRules';

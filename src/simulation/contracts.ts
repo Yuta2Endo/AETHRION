@@ -60,11 +60,9 @@ export function getDepartment(id: DepartmentId): Department | undefined {
  * Typed integration boundary between the Corporation Engine and the
  * Economy Engine.
  *
- * The corporation can produce this signal, but the Economy Engine does **not**
- * consume it yet: the market model has no notion of goods that could be
- * offered (products and production arrive in Stage 04). Wiring it now would
- * be an artificial economic effect, so the contract is defined and the
- * connection is deferred and documented.
+ * The corporation produces this signal and the Economy Engine consumes it to
+ * modulate commodity supply and demand (Stage 04). The signal is a plain
+ * structure so that neither engine has to import the other.
  */
 export interface CorporateMarketSignal {
   /** Aggregate corporate demand pressure, 0..100. */
@@ -74,3 +72,25 @@ export interface CorporateMarketSignal {
   /** Workforce productivity driving the signal, 0..100. */
   productivity: number;
 }
+
+/**
+ * Identifier of a tradeable resource.
+ *
+ * Resources are consumed by products and by manufacturing. The identifier
+ * lives here so that the Product, Resource and Production engines can share
+ * it without importing each other.
+ */
+export type ResourceId =
+  | 'raw-materials'
+  | 'metals'
+  | 'electronics'
+  | 'energy'
+  | 'components'
+  | 'advanced-materials'
+  | 'research-data'
+  | 'industrial-chemicals';
+
+/**
+ * A resource requirement: how many units of a resource are needed.
+ */
+export type ResourceRequirement = Partial<Record<ResourceId, number>>;

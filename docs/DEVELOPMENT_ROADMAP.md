@@ -1,8 +1,8 @@
 # AETHRION — Development Roadmap
 
 **Project:** AETHRION  
-**Stage:** 03 — Corporation & Employee Engines (current)  
-**Status:** Stage 03 complete — Stage 04 awaiting user approval
+**Stage:** 04 — Technology & Production Engines (current)  
+**Status:** Stage 04 complete — Stage 05 awaiting user approval
 
 ---
 
@@ -54,17 +54,24 @@
 
 ---
 
-## Stage 04: Technology & Production Engines (next — pending user approval)
+## Completed — Stage 04: Technology & Production Engines
 
-- Technology tree, research progress, unlocks.
-- Factories, products, manufacturing.
-- Supply chains and logistics.
-- Research and factory management screens.
-- Connection of the corporate market signal to the Economy Engine.
+- **Technology Research Engine**: a data-driven tree of 20 technologies in six categories, prerequisites, tier gating, research projects with a deterministic contribution model driven by the Stage 03 workforce, unlock effects (production efficiency, research speed, quality, market reach, resource yield), cancellation and a bounded research history.
+- **Product Development Engine**: six data-driven product blueprints, technology prerequisites, development projects with a deterministic contribution model (engineers 100 %, researchers 70 %), a transparent quality formula, innovation and market readiness.
+- **Resource & Supply Chain**: eight resources priced from the live market, an inventory with balances, reservations and a bounded ledger, and fully atomic purchase / reserve / release / consume operations — a failed operation never partially consumes resources.
+- **Production Engine**: four facility types with capability checks, production orders with resource reservation, effective efficiency from the assigned workforce, deterministic duration and operating cost, completion into the product inventory and cancellation that releases the reservation.
+- **Market Integration**: demand from the commercial activity, quality, price and the unlocked market reach; inventory-limited sales; batched sale transactions; and the `CorporateMarketSignal` now consumed by the Economy Engine.
+- **Simulation integration**: the tick order grew to nine systems (world → economy → employees → technology → products → resources → production → market → corporation) while preserving the Stage 02 world → economy dependency.
+- **Command layer** split into a focused module per domain — 16 validated player commands in total, every one returning a typed result and leaving the state unchanged on failure.
+- **Interface**: Technology & Research, Product Development, Resource Inventory, Manufacturing and Products & Market sections; the finance overview extended with the research, development, resource, manufacturing and sales figures.
+- **Tests**: 285 passing (was 170) — including an end-to-end test of the complete economic chain.
+- Documentation updated; `docs/ENGINE_RULES.md` and `docs/STAGE_04_FINAL_REPORT.md` created.
+
+**Still deferred to later stages (unchanged):** cities (Stage 05), events and competitor AI (Stage 06), Web Workers (Stage 07), IndexedDB save/load (Stage 08), Three.js world rendering (Stage 09).
 
 ---
 
-## Stage 05: City Engine
+## Stage 05: City Engine (next — pending user approval)
 
 - Cities, buildings, urban development.
 - City ↔ Corporation ↔ Economy integration.
