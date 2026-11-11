@@ -118,10 +118,12 @@ export class SimulationRunner {
   private readonly clock: GameClock;
   private readonly unbinders: Array<() => void> = [];
   private readonly metrics = new SimulationMetricsCollector();
-  private readonly workerClient: SimulationWorkerClient | null = null;
+  private readonly workerClient: SimulationWorkerClient | null;
+  private readonly executionMode: SimulationExecutionOption;
 
   constructor(options: SimulationRunnerOptions = {}) {
     const tickDurationMs = options.tickDurationMs ?? 1000;
+    this.executionMode = options.executionMode ?? 'inline';
 
     this.clock =
       options.clock ??
@@ -133,16 +135,18 @@ export class SimulationRunner {
       config: { tickDurationMs },
     });
 
-    if (options.executionMode === 'worker') {
+    if (this.executionMode === 'worker') {
       this.workerClient = new SimulationWorkerClient({
         createTransport: options.createWorkerTransport,
         timeoutMs: options.workerTimeoutMs,
         forceSupported: options.createWorkerTransport !== undefined,
       });
+    } else {
+      this.workerClient = null;
     }
 
     if (options.registerSystems !== false) {
-      this.registerSystems(options.executionMode ?? 'inline');
+      this.registerSystems(this.executionMode);
     }
     this.bindStore();
   }
@@ -342,6 +346,41 @@ export class SimulationRunner {
         lastSequence: 0,
       }
     );
+  }
+
+  /**
+   * Prepares the runner for a state restore.
+   *
+   * The simulation is stopped, the Worker is reset so it cannot operate on
+   * stale pre-load state, and the transient performance figures are cleared.
+   * The authoritative game state must be applied by the caller.
+   */
+  prepareRestore(): void {
+    this.engine.stop();
+    this.engine.hydrate(0, 'idle');
+    this.clock.pause();
+    this.metrics.reset();
+    this.workerClient?.reset();
+  }
+
+  /**
+   * Finalises a restore after the authoritative state and the clock have been
+   * applied. The game is left paused so the player can resume explicitly.
+   */
+  finalizeRestore(tick: number): void {
+    this.engine.hydrate(tick, 'paused');
+    this.clock.pause();
+    const store = useGameStore.getState();
+    store.applyPerformanceMetrics(this.metrics.getMetrics());
+    store.applySimulationMeta({
+      status: 'paused',
+      tick,
+      simTimeMs: this.clock.now(),
+      elapsedSimMs: this.clock.getElapsedSimMs(),
+      date: this.clock.getDate(),
+      speed: this.clock.getSpeed(),
+      lastError: null,
+    });
   }
 
   /** Releases the engine and every store subscription. */

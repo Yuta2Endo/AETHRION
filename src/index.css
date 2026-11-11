@@ -2018,3 +2018,14 @@ select {
     align-items: stretch;
   }
 }
+
+.save-manager { display: flex; flex-direction: column; gap: var(--space-4); }
+.save-toolbar { display: grid; gap: var(--space-3); }
+.save-toolbar-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.autosave-panel { display: flex; flex-direction: column; gap: var(--space-3); }
+.autosave-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3); align-items: end; }
+.field--inline { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.save-slot-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-3); }
+.save-slot { display: flex; flex-direction: column; gap: var(--space-3); }
+.save-confirm { display: flex; flex-direction: column; gap: var(--space-3); border-color: var(--surface-border-hover); }
+@media (max-width: 480px) { .save-slot-list, .autosave-controls { grid-template-columns: 1fr; } }

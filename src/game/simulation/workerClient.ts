@@ -339,6 +339,32 @@ export class SimulationWorkerClient {
     this.workerId = null;
     logger.info('Simulation Worker terminated');
   }
+
+  /**
+   * Resets the client so it can be used again after a restore.
+   *
+   * Any existing worker is terminated and the client returns to its initial
+   * state. The next tick will perform a fresh handshake.
+   */
+  reset(): void {
+    if (this.transport) {
+      try {
+        this.transport.terminate();
+      } catch {
+        // The worker is already gone.
+      }
+    }
+
+    this.transport = null;
+    this.workerId = null;
+    this.available = false;
+    this.initializing = null;
+    this.fallbackActive = false;
+    this.fallbackActivations = 0;
+    this.errors = 0;
+    this.sequence = 0;
+    this.disposed = false;
+  }
 }
 
 /**

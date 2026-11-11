@@ -32,6 +32,7 @@ import { CityLandSection } from '@/ui/screens/sections/CityLandSection';
 import { CityOverviewSection } from '@/ui/screens/sections/CityOverviewSection';
 import { CompetitorOverviewSection } from '@/ui/screens/sections/CompetitorOverviewSection';
 import { DiagnosticsSection } from '@/ui/screens/sections/DiagnosticsSection';
+import { SaveLoadSection } from '@/ui/screens/sections/SaveLoadSection';
 import { EmployeeManagement } from '@/ui/screens/sections/EmployeeManagement';
 import { EventsSection } from '@/ui/screens/sections/EventsSection';
 import { FinanceOverview } from '@/ui/screens/sections/FinanceOverview';
@@ -194,6 +195,9 @@ export function Dashboard() {
       {/* ------------------------------------------------------ diagnostics */}
       <DiagnosticsSection />
 
+      {/* ----------------------------------------------------- save & load */}
+      <SaveLoadSection />
+
       {/* ------------------------------------------------------ world overview */}
       <section className="section-block" aria-label="World overview">
         <h2 className="section-title">
@@ -334,7 +338,7 @@ export function Dashboard() {
       <footer className="dashboard-footer">
         <div className="badge brand-badge">Premium Neon Sci-Fi</div>
         <div className="version-text">
-          AETHRION v0.7.0 — Stage 07 Performance &amp; Web Workers
+          AETHRION v0.8.0 — Stage 08 Save &amp; Archive Engine
         </div>
       </footer>
     </div>

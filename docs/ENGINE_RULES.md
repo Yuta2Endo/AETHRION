@@ -715,6 +715,18 @@ The execution place never changes the rules:
 The worker architecture, the message protocol, the transfer strategy and the recovery rules are
 documented in `docs/WORKER_ARCHITECTURE.md`.
 
+## 12. Persistence and Save/Load (Stage 08)
+
+The Save & Archive Engine persists **authoritative, serialisable simulation state** (explicit allowlist) so a run can be saved, loaded and continued deterministically. Persistence is independent from the simulation rules and the UI.
+
+- **Authoritative state:** the 13 simulation slices (`empire`, `world`, `economy`, `corporation`, `employees`, `technology`, `products`, `resources`, `production`, `market`, `city`, `events`, `competitors`) plus the simulation meta and the clock snapshot. `events` carries the deterministic RNG/scheduler state (`randomState`, `sequence`, cooldowns). Transient/runtime state (performance metrics, Worker, engine/scheduler internals, UI) is never persisted.
+- **Clock & determinism:** the clock snapshot (`startDateMs`, `elapsedSimMs`, ticks, config, speed) and tick/elapsed counters are restored exactly — the wall clock is never read and seeds are never regenerated. Save → continue → restore → continue produces identical authoritative state (verified inline and in worker mode).
+- **Confirmed state & atomicity:** saves capture the confirmed post-tick state. A save never overlaps (in-flight guard) and a failed write preserves the previous valid record (with backups). A load validates, verifies integrity and migrates before apply, restores atomically into a **paused** state, and on any failure leaves the active game unchanged.
+- **Autosave:** configurable, driven by **simulated elapsed time** (default 5 simulated minutes), triggered after confirmed ticks, debounced/non-overlapping, written to a rotating autosave slot.
+- **Worker compatibility:** IndexedDB runs on the main thread only. A restore stops the simulation, resets the Worker client (no stale pre-load worker), applies state, and reinitialises execution against fresh state.
+
+Format, versioning, migrations, integrity and archives are documented in `docs/SAVE_FORMAT.md` and `docs/SAVE_ARCHITECTURE.md`.
+
 ---
 
 ## 9. Global Events Engine

@@ -229,6 +229,24 @@ export class GameEngine {
     logger.info('GameEngine reset');
   }
 
+  /**
+   * Hydrates the engine with a previously persisted tick counter and status.
+   *
+   * The loop is stopped and the backlog is cleared. The caller is responsible
+   * for restoring the clock and the authoritative game state consistently.
+   */
+  hydrate(tick: number, status: SimulationStatus): void {
+    if (this.disposed) return;
+    this.cancelFrame();
+    this.tick = Number.isInteger(tick) && tick >= 0 ? tick : 0;
+    this.accumulator = 0;
+    this.lastFrameTime = null;
+    this.ticking = false;
+    this.failedSystems.clear();
+    this.lastError = null;
+    this.status = status;
+  }
+
   // ------------------------------------------------------------------ ticks
 
   /**

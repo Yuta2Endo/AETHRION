@@ -43,6 +43,18 @@ export interface GameClockConfig {
   paused: boolean;
 }
 
+/**
+ * A serialisable snapshot of the clock state.
+ *
+ * Restoring the snapshot makes the clock continue deterministically from the
+ * saved simulated time — the wall clock is never involved.
+ */
+export interface GameClockSnapshot {
+  config: GameClockConfig;
+  elapsedSimMs: number;
+  ticks: number;
+}
+
 export const DEFAULT_TICK_DURATION_MS = 1000;
 export const DEFAULT_BASE_SIM_MS_PER_TICK = 3_600_000; // 1 simulated hour
 export const MIN_SPEED_MULTIPLIER = 0.25;
@@ -174,6 +186,30 @@ export class GameClock {
     this.ticks = 0;
     this.config.speedMultiplier = this.initialSpeed;
     this.config.paused = this.initialPaused;
+  }
+
+  /**
+   * A serialisable snapshot of the clock.
+   */
+  getSnapshot(): GameClockSnapshot {
+    return {
+      config: { ...this.config },
+      elapsedSimMs: this.elapsedSimMs,
+      ticks: this.ticks,
+    };
+  }
+
+  /**
+   * Restores the clock from a snapshot.
+   *
+   * The restored clock produces the same simulated time as the original — no
+   * wall-clock value is ever read.
+   */
+  restore(snapshot: GameClockSnapshot): void {
+    this.config = { ...snapshot.config };
+    this.validateConfig();
+    this.elapsedSimMs = isFiniteNumber(snapshot.elapsedSimMs) ? snapshot.elapsedSimMs : 0;
+    this.ticks = Number.isInteger(snapshot.ticks) && snapshot.ticks >= 0 ? snapshot.ticks : 0;
   }
 }
 

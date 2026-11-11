@@ -1,7 +1,7 @@
 # AETHRION — Technical Architecture
 
 **Project:** AETHRION  
-**Stage:** 07 — Performance & Web Workers
+**Stage:** 08 — Save & Archive Engine
 
 > The exact rules of the Stage 04, Stage 05 and Stage 06 engines are documented in
 > `docs/ENGINE_RULES.md`. This document describes the architecture and the layering.
@@ -437,9 +437,30 @@ The kernel imports no React, DOM, Zustand or rendering code. The clock, the sche
 
 The full message protocol, the transfer strategy, the determinism guarantees and the recovery rules are documented in `docs/WORKER_ARCHITECTURE.md`. The generic `src/workers/` directory remains reserved for future worker uses.
 
-## 21. Persistence
+## 21. Persistence (Stage 08)
 
-`src/services/persistence/indexedDB.ts` — IndexedDB (via `idb`). Wired up in Stage 08.
+`src/game/persistence/` implements the Save & Archive Engine (IndexedDB via `idb`, database `aethrion-save` v1).
+
+| Module | Responsibility |
+|--------|----------------|
+| `saveTypes.ts` | Versioned payload/metadata/record/archive, slot and autosave config |
+| `saveErrors.ts` | Typed recoverable errors |
+| `saveValidation.ts` | Structural validation (pre-save, post-migration, pre-load) |
+| `saveSerialization.ts` | Explicit allowlist capture/apply of authoritative state and clock |
+| `saveIntegrity.ts` | SHA-256 checksum of canonical payload, size measurement |
+| `saveMigration.ts` | Sequential, typed migrations |
+| `database.ts` | IndexedDB open/upgrade/availability and stores |
+| `saveRepository.ts` | Low-level CRUD, slot index, backups |
+| `saveBackup.ts` | Portable JSON archive export/import |
+| `saveService.ts` | Orchestration, concurrency control, autosave, status |
+| `index.ts` | Public API and singleton `saveService` |
+
+- **Allowlist:** 13 authoritative slices + simulation meta + clock snapshot; transient/runtime/UI/Worker state excluded. RNG state persists in `events`.
+- **Safety:** confirmed-state saves, non-overlapping writes, backup of previous record, atomic application perspective, failed load preserves active game, restore to paused state, worker reset on restore.
+- **Autosave:** simulated-time interval (default 5 sim minutes), post-tick, rotating `autosave` slot.
+- **Integrity/migration/archives:** SHA-256 when available (not encryption/anti-cheat), sequential migrations, portable JSON archives imported into new slots by default.
+
+`src/services/persistence/indexedDB.ts` remains a legacy Stage 01 stub. Details: `docs/SAVE_ARCHITECTURE.md`, `docs/SAVE_FORMAT.md`.
 
 ## 22. TypeScript Configuration
 

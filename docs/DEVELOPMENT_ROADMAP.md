@@ -1,8 +1,8 @@
 # AETHRION — Development Roadmap
 
 **Project:** AETHRION  
-**Stage:** 07 — Performance & Web Workers (current)  
-**Status:** Stage 07 complete — Stage 08 awaiting user approval
+**Stage:** 08 — Save & Archive Engine (current)  
+**Status:** Stage 08 complete — Stage 09 awaiting user approval
 
 ---
 
@@ -126,11 +126,27 @@
 
 ---
 
-## Stage 08: Save & Archive Engine (next — pending user approval)
+## Completed — Stage 08: Save & Archive Engine
 
-- IndexedDB persistence wiring (`src/services/persistence/indexedDB.ts`).
-- Save slots, named saves, archives.
-- Autosave and restore flow, save/load UI.
+- **Persistence subsystem** (`src/game/persistence/`): typed, versioned save format and explicit allowlist of authoritative simulation state (13 slices + simulation meta + clock snapshot, including deterministic RNG state); validation, stable SHA-256 integrity (when available), sequential migrations, and portable JSON archives.
+- **Database & repository:** IndexedDB via `idb` (`aethrion-save` v1) with `saves` (unique per-slot index, metadata listing) and `backups` stores; atomic-per-slot writes, previous-record backup on overwrite, recoverable typed errors.
+- **Save/Load:** manual saves to independent slots (configurable capacity, default 10), rename/delete with confirmation, metadata inspection, export/import (validated, import into empty slot by default). Loads validate/verify/migrate, restore clock/tick/RNG and apply atomically, leave the game paused, and never mutate the active game on failure.
+- **Autosave:** configurable (enabled by default, 5 simulated minutes), simulated-time driven, post-tick, debounced and non-overlapping, rotating autosave slot.
+- **Determinism & Worker compatibility:** save → continue → restore → continue equivalence verified in inline and worker modes; restore stops/resets the Worker client and reinitialises against fresh state (IndexedDB on main thread only).
+- **Clock/Runner hooks:** serialisable `GameClock` snapshot/restore and runner/engine hydration/reset support for safe, atomic restores.
+- **UI:** `SaveLoadSection` (slot manager, autosave settings, confirmations, import/export, status/errors) integrated into the dashboard, responsive and accessible, using existing design tokens/primitives.
+- **Tests:** 502 passing (was 487) — save/load/slots/rename/delete, concurrency, backups, integrity, validation, migration pipeline, archives, autosave, determinism (inline/worker), failed-load preservation; all existing Stage 01–07 tests passing.
+- Documentation: `docs/SAVE_ARCHITECTURE.md`, `docs/SAVE_FORMAT.md`, updated architecture/roadmap/engine rules, and `docs/STAGE_08_FINAL_REPORT.md`.
+
+**Still deferred to later stages (unchanged):** Three.js world rendering (Stage 09).
+
+---
+
+## Stage 09: Rendering Engine / World View (next — pending user approval)
+
+- Three.js world view (scenes, cameras, materials, lighting) driven by simulation state.
+- Empire visualisation, region rendering, interactive camera.
+- Rendering ↔ simulation boundary hardening (render-only guarantee).
 
 ---
 
