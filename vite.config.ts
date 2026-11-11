@@ -27,6 +27,9 @@ export default defineConfig({
         manualChunks(id: string) {
           const path = id.replace(/\\/g, '/');
           if (!path.includes('node_modules/')) return undefined;
+          if (path.includes('/three/')) {
+            return 'three';
+          }
           if (path.includes('/framer-motion/') || path.includes('/motion-dom/') || path.includes('/motion-utils/')) {
             return 'motion';
           }

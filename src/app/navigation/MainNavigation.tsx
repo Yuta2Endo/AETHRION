@@ -45,7 +45,8 @@ export function MainNavigation({ onClose }: MainNavigationProps) {
 
   const items: NavigationItem[] = [
     { key: 'dashboard', label: 'Command Center', icon: House, status: 'ready' },
-    { key: 'world', label: 'World Engine', icon: Globe, status: 'baseline' },
+    { key: 'worldview', label: 'World View', icon: Globe, status: 'ready' },
+    { key: 'world', label: 'World Engine', icon: ChartLine, status: 'baseline' },
     { key: 'economy', label: 'Economy Engine', icon: ChartLine, status: 'baseline' },
     { key: 'corporation', label: 'Corporation', icon: Buildings, status: 'baseline' },
     { key: 'technology', label: 'Technology', icon: MagnifyingGlass, status: 'planned' },
@@ -53,7 +54,7 @@ export function MainNavigation({ onClose }: MainNavigationProps) {
     { key: 'city', label: 'City Engine', icon: MapPin, status: 'ready' },
     { key: 'employees', label: 'Employees', icon: Users, status: 'baseline' },
     { key: 'competitors', label: 'Competitor AI', icon: ShieldWarning, status: 'ready' },
-    { key: 'save', label: 'Save & Archive', icon: Rocket, status: 'planned' },
+    { key: 'save', label: 'Save & Archive', icon: Rocket, status: 'ready' },
   ];
 
   return (
@@ -91,8 +92,8 @@ export function MainNavigation({ onClose }: MainNavigationProps) {
         </ul>
 
         <div className="nav-footer">
-          <div className="nav-footer-label">Stage 06 — Events &amp; Competitor AI</div>
-          <div className="nav-footer-label text-muted">A living market</div>
+          <div className="nav-footer-label">Stage 09 — Rendering &amp; World View</div>
+          <div className="nav-footer-label text-muted">3D city visualization</div>
         </div>
       </div>
     </nav>

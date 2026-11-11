@@ -1,7 +1,7 @@
 # AETHRION — Technical Architecture
 
 **Project:** AETHRION  
-**Stage:** 08 — Save & Archive Engine
+**Stage:** 09 — Rendering Engine & World View
 
 > The exact rules of the Stage 04, Stage 05 and Stage 06 engines are documented in
 > `docs/ENGINE_RULES.md`. This document describes the architecture and the layering.
@@ -461,6 +461,27 @@ The full message protocol, the transfer strategy, the determinism guarantees and
 - **Integrity/migration/archives:** SHA-256 when available (not encryption/anti-cheat), sequential migrations, portable JSON archives imported into new slots by default.
 
 `src/services/persistence/indexedDB.ts` remains a legacy Stage 01 stub. Details: `docs/SAVE_ARCHITECTURE.md`, `docs/SAVE_FORMAT.md`.
+
+## 22. Rendering Engine & World View (Stage 09)
+
+`src/rendering/` implements a rendering-only 3D visualization layer (Three.js `^0.171.0`). It reads authoritative simulation state and never mutates it or contains gameplay rules.
+
+| Module | Responsibility |
+|--------|----------------|
+| `types/` | Rendering-only types (selection, layout, visual state, quality) |
+| `adapters/cityLayout.ts` | Deterministic visual placement from stable district/plot IDs |
+| `adapters/cityAdapter.ts` | Read-only mapping from `City` state to visual model |
+| `city/palette.ts` | District/category/status visual mapping (colors, height, opacity) |
+| `city/CityWorld.ts` | Scene content, incremental sync, selection highlight, disposal |
+| `core/quality.ts` | WebGL detection and mobile-conscious render quality settings |
+| `core/WorldRenderer.ts` | Renderer/camera/OrbitControls, render loop, resize/visibility/context handling, raycast selection, lifecycle |
+| `index.ts` | Public rendering API (legacy Stage 01 exports retained) |
+
+- **Integration:** `src/ui/screens/sections/WorldViewSection.tsx` mounts the renderer, subscribes narrowly to city state, provides camera/focus/clear controls, read-only inspection, and WebGL/error/empty fallbacks with 2D/textual overview.
+- **Synchronization:** incremental, ID/state-keyed updates reflecting live simulation and save/load restores; compatible with inline/worker execution (store-driven). No Three.js objects in save format.
+- **Performance/safety:** DPR cap and restrained effects, visibility-aware rendering, resize observer, safe dispose, context-loss handling. Three.js split into a dedicated build chunk.
+
+Details: `docs/RENDERING_ARCHITECTURE.md`, `docs/WORLD_VIEW_GUIDE.md`.
 
 ## 22. TypeScript Configuration
 

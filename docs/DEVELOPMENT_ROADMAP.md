@@ -1,8 +1,8 @@
 # AETHRION — Development Roadmap
 
 **Project:** AETHRION  
-**Stage:** 08 — Save & Archive Engine (current)  
-**Status:** Stage 08 complete — Stage 09 awaiting user approval
+**Stage:** 09 — Rendering Engine & World View (current)  
+**Status:** Stage 09 complete — Stage 10 awaiting user approval
 
 ---
 
@@ -138,15 +138,27 @@
 - **Tests:** 502 passing (was 487) — save/load/slots/rename/delete, concurrency, backups, integrity, validation, migration pipeline, archives, autosave, determinism (inline/worker), failed-load preservation; all existing Stage 01–07 tests passing.
 - Documentation: `docs/SAVE_ARCHITECTURE.md`, `docs/SAVE_FORMAT.md`, updated architecture/roadmap/engine rules, and `docs/STAGE_08_FINAL_REPORT.md`.
 
-**Still deferred to later stages (unchanged):** Three.js world rendering (Stage 09).
+---
+
+## Completed — Stage 09: Rendering Engine & World View
+
+- **Rendering subsystem** (`src/rendering/`): dedicated, simulation-independent rendering layer (types, deterministic city layout adapter, read-only simulation-to-visual adapter, `CityWorld` scene content/sync, `WorldRenderer` lifecycle/camera/controls/selection, quality/WebGL detection). Legacy Stage 01 Three.js placeholders retained for compatibility.
+- **World View:** interactive 3D city visualization driven by actual simulation state (5 districts, 30 plots, buildings) with district grounds/boundaries, plot tiles, procedural building meshes reflecting category and status (planned/constructing/completed/operational/suspended), progress/infra cues, and selection highlights.
+- **Deterministic mapping:** stable visual placement derived from district/plot identifiers (no 3D coords in sim state); same state ⇒ same layout.
+- **Camera & interaction:** orbit/zoom/pan with limits and damping, reset/focus/clear, touch-friendly viewport; raycast selection of districts/plots/buildings with read-only React inspection panel showing real simulation data.
+- **Synchronization & safety:** incremental, ID/state-keyed sync (no full rebuild per render, no authoritative render copy), live updates, save/load restore reflection, worker-mode compatible (reads store state), no save-format change, safe init/dispose/resize/visibility/context-loss handling.
+- **Fallback & performance:** WebGL/error fallback with 2D/textual city overview (real data), Android-conscious quality caps (DPR/AA heuristics), restrained effects, Three.js chunk split. Simulation unaffected by rendering failures/unmount.
+- **Integration:** `WorldViewSection` added to Dashboard; navigation/version updated to v0.9.0.
+- **Tests:** 515 passing (was 502) — layout determinism, adapters/mapping, incremental sync/no-mutation, visual status mapping, save/load visual reflection, WebGL fallback/inspector UI; existing Stage 01–08 suites passing.
+- Documentation: `docs/RENDERING_ARCHITECTURE.md`, `docs/WORLD_VIEW_GUIDE.md`, updated architecture/roadmap, and `docs/STAGE_09_FINAL_REPORT.md`.
+
+**Still deferred to later stages (unchanged):** Android native integration, ads/monetization, multiplayer/cloud sync, new gameplay engines/economic rules/content, advanced rendering scope beyond Stage 09.
 
 ---
 
-## Stage 09: Rendering Engine / World View (next — pending user approval)
+## Stage 10 (next — pending user approval)
 
-- Three.js world view (scenes, cameras, materials, lighting) driven by simulation state.
-- Empire visualisation, region rendering, interactive camera.
-- Rendering ↔ simulation boundary hardening (render-only guarantee).
+- Scope to be defined and explicitly approved by the user.
 
 ---
 
