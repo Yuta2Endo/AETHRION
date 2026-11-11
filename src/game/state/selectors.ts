@@ -89,3 +89,6 @@ export const selectNews = (state: GameStoreState) => state.events.news;
 export const selectCompetitorsState = (state: GameStoreState) => state.competitors;
 /** The AI corporations — a stable reference. */
 export const selectCompetitors = (state: GameStoreState) => state.competitors.competitors;
+
+/** The bounded performance figures of the simulation. */
+export const selectPerformanceMetrics = (state: GameStoreState) => state.performance;

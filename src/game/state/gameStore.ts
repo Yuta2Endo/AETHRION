@@ -21,6 +21,10 @@ import type { GameDate } from '@/game/clock/gameClock';
 import { createInitialCityState, type CityState } from '@/simulation/city';
 import { createInitialCompetitorsState, type CompetitorsState } from '@/simulation/competitors';
 import {
+  createInitialPerformanceMetrics,
+  type SimulationPerformanceMetrics,
+} from '@/game/simulation/metrics';
+import {
   createInitialCorporationState,
   type CorporationState,
 } from '@/simulation/corporation';
@@ -85,6 +89,8 @@ export interface GameStoreState {
   events: EventsState;
   /** The AI corporations. */
   competitors: CompetitorsState;
+  /** The bounded performance figures of the simulation. */
+  performance: SimulationPerformanceMetrics;
   simulation: SimulationMeta;
 
   /** Controlled updates — the store stores results, it never computes them. */
@@ -100,6 +106,7 @@ export interface GameStoreState {
   applyCityState: (next: CityState) => void;
   applyEventsState: (next: EventsState) => void;
   applyCompetitorsState: (next: CompetitorsState) => void;
+  applyPerformanceMetrics: (next: SimulationPerformanceMetrics) => void;
   applySimulationMeta: (next: Partial<SimulationMeta>) => void;
   applyEmpire: (next: Partial<EmpireState>) => void;
   /** Restores the initial simulation state. */
@@ -137,6 +144,7 @@ export const useGameStore = create<GameStoreState>()((set) => ({
   city: createInitialCityState(),
   events: createInitialEventsState(),
   competitors: createInitialCompetitorsState(),
+  performance: createInitialPerformanceMetrics(),
   simulation: { ...INITIAL_SIMULATION },
 
   applyWorldState: (next) => set({ world: next }),
@@ -151,6 +159,7 @@ export const useGameStore = create<GameStoreState>()((set) => ({
   applyCityState: (next) => set({ city: next }),
   applyEventsState: (next) => set({ events: next }),
   applyCompetitorsState: (next) => set({ competitors: next }),
+  applyPerformanceMetrics: (next) => set({ performance: next }),
   applySimulationMeta: (next) =>
     set((state) => ({ simulation: { ...state.simulation, ...next } })),
   applyEmpire: (next) => set((state) => ({ empire: { ...state.empire, ...next } })),
@@ -169,6 +178,7 @@ export const useGameStore = create<GameStoreState>()((set) => ({
       city: createInitialCityState(),
       events: createInitialEventsState(),
       competitors: createInitialCompetitorsState(),
+      performance: createInitialPerformanceMetrics(),
       simulation: { ...INITIAL_SIMULATION },
     }),
 }));

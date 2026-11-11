@@ -690,6 +690,31 @@ Dependencies respected by the order:
 Pause stops every system. A failing system is isolated by the Game Core: the failure is recorded
 and the remaining systems still run.
 
+## 11. Execution Model (Stage 07)
+
+The same domain rules can be executed in two places:
+
+- **Inline (main thread)** — the twelve systems of the simulation kernel are registered on the
+  Game Core and run on the main thread, exactly as in Stages 01–06.
+- **Worker** — a single Game Core system delegates the whole tick to a Web Worker. The Worker
+  runs the **same** simulation kernel (`src/game/simulation/kernel.ts`) over a plain, serialisable
+  snapshot of the simulation state and returns the delta of the slices that changed.
+
+The execution place never changes the rules:
+
+- the **tick order** above is identical in both modes — in worker mode it is enforced inside the
+  kernel;
+- the **clock, the scheduler and the lifecycle** (start / stop / pause / resume / reset / speed /
+  step) stay on the main thread and remain authoritative;
+- the result is **deterministic** — the same initial state, commands, simulated time and tick
+  sequence produce the same state in both modes;
+- a **failing system is isolated** in both modes and a Worker failure never executes a tick twice;
+- if the Worker is unavailable or fails, the simulation falls back to the main thread and the last
+  confirmed state is preserved.
+
+The worker architecture, the message protocol, the transfer strategy and the recovery rules are
+documented in `docs/WORKER_ARCHITECTURE.md`.
+
 ---
 
 ## 9. Global Events Engine

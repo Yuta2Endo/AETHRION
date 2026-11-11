@@ -1,8 +1,8 @@
 # AETHRION — Development Roadmap
 
 **Project:** AETHRION  
-**Stage:** 06 — Events & Competitor AI Engines (current)  
-**Status:** Stage 06 complete — Stage 07 awaiting user approval
+**Stage:** 07 — Performance & Web Workers (current)  
+**Status:** Stage 07 complete — Stage 08 awaiting user approval
 
 ---
 
@@ -111,11 +111,26 @@
 
 ---
 
-## Stage 07: Performance & Web Workers (next — pending user approval)
+## Completed — Stage 07: Performance & Web Workers
 
-- Off-main-thread simulation ticks via Web Workers + Comlink.
-- Simulation cost profiling and optimisation.
-- Worker fallback for unsupported environments.
+- **Simulation kernel** (`src/game/simulation/kernel.ts`): the twelve domain systems extracted into a pure, injected-store kernel that imports no React, DOM, Zustand or rendering code — the same implementations run on the main thread and inside a Web Worker.
+- **Worker architecture**: a module Worker (`src/game/simulation/worker.ts`) wired through Comlink over a narrow transport boundary, a versioned handshake, a typed tick protocol returning the delta of the changed slices, and a main-thread adapter (`workerClient.ts`) that owns the lifecycle, the sequence validation and the timeout.
+- **Determinism & state integrity**: the Worker runs the same kernel with the same snapshot, context and seeded RNG state, so identical runs produce identical results in inline and worker mode; responses carry a monotonic sequence number, stale or invalid responses are rejected, and a tick is never executed twice after an uncertain failure.
+- **Fallback & recovery**: if the Worker is unavailable, fails the handshake, times out or errors at runtime, the simulation falls back to the main thread and the last confirmed state is preserved. The fallback is explicit and observable.
+- **Game Core integration**: the clock, the scheduler, the tick counter and the lifecycle (start / stop / pause / resume / reset / speed / step) remain on the main thread; the worker path never overlaps ticks.
+- **Performance instrumentation**: a bounded metrics layer (average/max tick, slow ticks, round-trip and worker time, fallback activations) exposed through a compact developer diagnostics section. Honest benchmarks recorded the measured inline and worker costs at the current state size.
+- **Tests**: 487 passing (was 464) — worker protocol and lifecycle, determinism/equivalence, ordering and no-duplication, pause/resume/reset/speed, stale/invalid response handling, fallback and benchmarks, with all existing Stage 01–06 tests still passing.
+- Documentation updated; `docs/WORKER_ARCHITECTURE.md` and `docs/STAGE_07_FINAL_REPORT.md` created.
+
+**Still deferred to later stages (unchanged):** IndexedDB save/load (Stage 08), Three.js world rendering (Stage 09).
+
+---
+
+## Stage 08: Save & Archive Engine (next — pending user approval)
+
+- IndexedDB persistence wiring (`src/services/persistence/indexedDB.ts`).
+- Save slots, named saves, archives.
+- Autosave and restore flow, save/load UI.
 
 ---
 

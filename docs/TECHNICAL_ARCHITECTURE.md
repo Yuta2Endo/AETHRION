@@ -1,7 +1,7 @@
 # AETHRION — Technical Architecture
 
 **Project:** AETHRION  
-**Stage:** 06 — Events & Competitor AI Engines
+**Stage:** 07 — Performance & Web Workers
 
 > The exact rules of the Stage 04, Stage 05 and Stage 06 engines are documented in
 > `docs/ENGINE_RULES.md`. This document describes the architecture and the layering.
@@ -264,7 +264,9 @@ Validated in order: profession → department → department availability at the
 
 ## 11. Simulation Integration
 
-`src/game/simulationRunner.ts` registers twelve systems in a fixed order:
+`src/game/simulationRunner.ts` binds the Game Core, the clock, the state and the simulation. The domain logic lives in the **simulation kernel** (`src/game/simulation/kernel.ts`), which is bound to an injected store so that the very same implementations run on the main thread and inside a Web Worker.
+
+The kernel registers twelve systems in a fixed order:
 
 ```
 1. Game Clock        — advances simulated time (engine-owned, before the systems)
@@ -294,6 +296,13 @@ engine** (the Events Engine runs first, so the modifiers apply in the same tick)
 **market → competitors** (the AI reacts to the market of the tick it is in; its own signal
 reaches the economy with the next tick, so nothing that was already calculated is ever changed
 retroactively).
+
+### Execution modes (Stage 07)
+
+- **Inline** — the twelve systems are registered on the Game Core and run on the main thread.
+- **Worker** — one Game Core system delegates the tick to a Web Worker. The Worker runs the same kernel over a plain snapshot and returns the delta of the changed slices; the main thread applies only the confirmed delta.
+
+The clock, the scheduler, the tick counter and the lifecycle stay on the main thread. The same initial state, commands, simulated time and tick sequence produce the same result in both modes, and a Worker failure never executes a tick twice (the simulation falls back to the main thread and the last confirmed state is preserved). The full architecture is documented in `docs/WORKER_ARCHITECTURE.md`.
 
 The workforce developed in the same tick feeds the corporation in that tick — verified by an
 integration test that recomputes the expected revenue independently. The full chain
@@ -409,9 +418,24 @@ Domain engines reject invalid input safely: an invalid state or context is logge
 
 `src/core/config/env.ts` — typed access to Vite env variables. No direct `import.meta.env` reads elsewhere.
 
-## 20. Web Workers
+## 20. Web Workers (Stage 07)
 
-`src/workers/` is reserved for Stage 07. Worker integration is deliberately **not** implemented in Stage 03.
+The simulation can execute off the main thread through a Web Worker:
+
+| Module | Responsibility |
+|--------|----------------|
+| `src/game/simulation/kernel.ts` | The pure, injected-store simulation kernel — the twelve systems in their documented order |
+| `src/game/simulation/types.ts` | The serialisable snapshot/delta, the store interface and the local store |
+| `src/game/simulation/protocol.ts` | The typed, versioned request/response contract and the sequence guards |
+| `src/game/simulation/workerApi.ts` | The pure Worker API (handshake and tick), unit-testable without a browser |
+| `src/game/simulation/worker.ts` | The module Worker entry point (Comlink transport only) |
+| `src/game/simulation/transport.ts` | The transport boundary and the Comlink-backed implementation |
+| `src/game/simulation/workerClient.ts` | The main-thread adapter: lifecycle, handshake, timeout, sequence validation and fallback |
+| `src/game/simulation/metrics.ts` | The bounded performance instrumentation |
+
+The kernel imports no React, DOM, Zustand or rendering code. The clock, the scheduler, the lifecycle and the application of the confirmed delta stay on the main thread. If the Worker is unavailable or fails, the same kernel runs inline and the last confirmed state is preserved.
+
+The full message protocol, the transfer strategy, the determinism guarantees and the recovery rules are documented in `docs/WORKER_ARCHITECTURE.md`. The generic `src/workers/` directory remains reserved for future worker uses.
 
 ## 21. Persistence
 
