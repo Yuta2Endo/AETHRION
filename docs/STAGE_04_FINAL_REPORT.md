@@ -107,8 +107,9 @@ unconnected — is now consumed by the Economy Engine.
 9. **Deterministic identifiers everywhere.** Technologies, products, facilities, orders and
    transactions derive their ids from state counters — never from `Date.now()` or
    `Math.random()`.
-10. **No new dependencies and no payroll redesign.** The seven-day payroll semantics of Stage 03
-    are untouched.
+10. **No new gameplay dependency and no payroll redesign.** The seven-day payroll semantics of
+    Stage 03 are untouched. The Stage 04 feature work added no package; the later toolchain
+    migration was a separate maintenance change (see section 20).
 
 ## 4. Technology Data Model
 
@@ -336,7 +337,10 @@ and every control is a real accessible form element.
 
 ### Modified (24)
 
-`package.json` (version 0.4.0) · `vite.config.ts` (vendor chunk splitting) ·
+`package.json` (version 0.4.0, npm `overrides`) · `vite.config.ts` (vendor chunk splitting,
+Rolldown-compatible `manualChunks`, `import.meta.dirname`) · `vitest.config.ts`
+(`import.meta.dirname`) · `src/tests/setup.ts` (`@testing-library/jest-dom/vitest`) ·
+`src/app/navigation/MainNavigation.tsx` (typed `Icon` instead of the `as any` assertion) ·
 `src/game/simulationRunner.ts` (nine systems) · `src/game/state/gameStore.ts` (five new slices) ·
 `src/game/state/selectors.ts` · `src/game/systems/index.ts` ·
 `src/simulation/contracts.ts` (resource identifiers) · `src/simulation/corporation/corporationState.ts`
@@ -349,7 +353,8 @@ and every control is a real accessible form element.
 `src/ui/components/index.ts` · `src/index.css` ·
 `src/tests/integration/simulation.test.ts` and `src/tests/integration/stage03.test.ts`
 (adapted to the new system order) · `docs/TECHNICAL_ARCHITECTURE.md` ·
-`docs/DEVELOPMENT_ROADMAP.md` · `docs/GAME_DESIGN_OVERVIEW.md` · `docs/DESIGN_SYSTEM.md`
+`docs/DEVELOPMENT_ROADMAP.md` · `docs/GAME_DESIGN_OVERVIEW.md` · `docs/DESIGN_SYSTEM.md` ·
+`docs/SECURITY_AUDIT.md`
 
 ## 15. Tests Added and Results
 
@@ -398,35 +403,40 @@ pass unchanged.
 ## 19. Production Build Results
 
 ```
-vite v5.4.21 building for production...
-✓ 5017 modules transformed.
-dist/index.html                 0.81 kB │ gzip:   0.43 kB
-dist/assets/index-CyUA_PwW.css 28.57 kB │ gzip:   5.20 kB
-dist/assets/state-BUhESDjB.js   3.62 kB │ gzip:   1.60 kB
-dist/assets/react-Cl8sjh7p.js   4.16 kB │ gzip:   1.57 kB
-dist/assets/motion-DTamthCu.js 120.51 kB │ gzip:  39.73 kB
-dist/assets/index-CVMAeUmH.js  449.78 kB │ gzip: 126.97 kB
-✓ built in 4.06s
+vite v8.3.8 building client environment for production...
+✓ 4993 modules transformed.
+dist/index.html                             0.90 kB │ gzip:   0.45 kB
+dist/assets/index-LOiAK8AT.css             28.18 kB │ gzip:   5.08 kB
+dist/assets/rolldown-runtime-BWaJ3C7D.js    0.91 kB │ gzip:   0.51 kB
+dist/assets/state-DTU5yBsG.js               5.66 kB │ gzip:   2.09 kB
+dist/assets/motion-CYJnYd5h.js            117.65 kB │ gzip:  38.90 kB
+dist/assets/index-B88RhdIG.js             122.83 kB │ gzip:  30.71 kB
+dist/assets/react-CAdICj_V.js             324.89 kB │ gzip:  94.89 kB
+✓ built in 296ms
 ```
-**Pass.** The dev server was started and returned **HTTP 200**.
+**Pass.** The dev server was started and returned **HTTP 200** with a clean browser console.
 
-The vendor chunk splitting was added in Stage 04: the application chunk dropped below the
-500 kB warning threshold and `framer-motion` is now cached independently.
+The vendor chunk splitting was added in Stage 04 and the toolchain migration to Vite 8
+(Rolldown) further improved it: the application chunk dropped from 449.78 kB to 122.83 kB.
 
 ## 20. Security and Dependency Observations
 
-- **No dependency changes.** Stage 04 added **zero** packages — the dependency set is identical
-  to Stage 03.
-- **Production runtime: clean.** `npm audit --omit=dev` → **0 vulnerabilities**.
-- **Development tooling: unchanged.** `npm audit` → 17 vulnerabilities (3 critical, 2 high,
-  12 moderate) across the same 16 dev packages, all reachable through `vitest`, `vite`,
-  `@capacitor/cli` and `typescript-eslint`. Every fix requires a semver-major upgrade
-  (`vitest@5`, `vite@8`, `@capacitor/cli@8`) and `typescript-eslint` has no fix available.
-  **No automatic `npm audit fix` was run**, as required — the assessment is recorded in
-  `docs/SECURITY_AUDIT.md` and the upgrade stays a separate maintenance task.
+- **The development advisories are closed.** `npm audit` → **0 vulnerabilities** (was 17:
+  3 critical, 2 high, 12 moderate). `npm audit --omit=dev` → **0 vulnerabilities**.
+- **The toolchain was migrated** to close the advisories: Vite 5 → **8.3.8**, Vitest 2 →
+  **5.1.0**, `@vitejs/plugin-react` 4 → **6.3.0**, Capacitor CLI/Core/Android 6 → **8.6.0**.
+  The last advisory (`minimatch`, inherited through `typescript-eslint`) was closed with an npm
+  `overrides` entry forcing the patched `11.0.8`.
+- **The migration required four code changes**, all verified by the full validation run: the
+  `@testing-library/jest-dom/vitest` entry point in the test setup, `import.meta.dirname`
+  instead of `__dirname` in both build configs, the function form of `manualChunks` required
+  by Rolldown, and the removal of an `as any` JSX assertion in the navigation that React was
+  forwarding to the icon SVG elements.
+- **The installed dependency tree shrank** from 387 to 326 packages.
 - **No secrets or credentials** were introduced; the `.gitignore` still excludes the local
   `.env.*` files.
 - **No real-money transactions and no monetization** — all values are in-game Aether Credits.
+- The full analysis is in `docs/SECURITY_AUDIT.md`.
 
 ## 21. Known Limitations
 
@@ -446,9 +456,9 @@ The vendor chunk splitting was added in Stage 04: the application chunk dropped 
    everything but is less efficient than a specialised facility.
 7. **No product differentiation in the market.** Every unit of a product is identical; the
    quality is a property of the product instance, not of the individual unit.
-8. **The bundle grew** with the new engines and the icon set. The vendor split keeps every chunk
-   below the warning threshold, but a code-splitting pass would be worth doing before the
-   Android release.
+8. **The `react` vendor chunk is 324.89 kB.** The application chunk is small (122.83 kB) and the
+   vendors are cached independently, but React itself is not code-split — a future pass could
+   lazy-load the dashboard sections before the Android release.
 9. **Playwright browsers are still not installed**, so no E2E test was executed. E2E was not a
    Stage 04 requirement.
 

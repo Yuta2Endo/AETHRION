@@ -6,7 +6,9 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      // `import.meta.dirname` instead of `__dirname` — the native config
+      // loader of Vite 8 does not provide `__dirname`.
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
   server: {
@@ -21,10 +23,20 @@ export default defineConfig({
       output: {
         // Split the heavy vendors into their own chunks so the application
         // chunk stays small and the vendors are cached independently.
-        manualChunks: {
-          react: ['react', 'react-dom'],
-          motion: ['framer-motion'],
-          state: ['zustand'],
+        // Rolldown (Vite 8) requires the function form of `manualChunks`.
+        manualChunks(id: string) {
+          const path = id.replace(/\\/g, '/');
+          if (!path.includes('node_modules/')) return undefined;
+          if (path.includes('/framer-motion/') || path.includes('/motion-dom/') || path.includes('/motion-utils/')) {
+            return 'motion';
+          }
+          if (path.includes('/react/') || path.includes('/react-dom/') || path.includes('/scheduler/')) {
+            return 'react';
+          }
+          if (path.includes('/zustand/')) {
+            return 'state';
+          }
+          return undefined;
         },
       },
     },

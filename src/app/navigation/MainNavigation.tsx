@@ -1,6 +1,18 @@
 import { useState } from 'react';
-import type React from 'react';
-import { House, Globe, Buildings, ChartLine, Users, MagnifyingGlass, Factory, MapPin, Rocket, ShieldWarning, X } from '@phosphor-icons/react';
+import type { Icon } from '@phosphor-icons/react';
+import {
+  House,
+  Globe,
+  Buildings,
+  ChartLine,
+  Users,
+  MagnifyingGlass,
+  Factory,
+  MapPin,
+  Rocket,
+  ShieldWarning,
+  X,
+} from '@phosphor-icons/react';
 
 interface MainNavigationProps {
   onClose: () => void;
@@ -9,7 +21,12 @@ interface MainNavigationProps {
 interface NavigationItem {
   key: string;
   label: string;
-  icon: React.ElementType;
+  /**
+   * A Phosphor icon component. The concrete `Icon` type is used instead of
+   * `React.ElementType` so that the `size` and `weight` props are type checked
+   * — and so that no type assertion is needed on the element.
+   */
+  icon: Icon;
   /**
    * ready   — implemented and interactive
    * baseline— implemented at baseline scope (Stage 02)
@@ -60,7 +77,7 @@ export function MainNavigation({ onClose }: MainNavigationProps) {
                   onClose();
                 }}
               >
-                <item.icon size={18} weight={selected === item.key ? 'bold' : 'regular'} as any />
+                <item.icon size={18} weight={selected === item.key ? 'bold' : 'regular'} />
                 <span className="nav-label">{item.label}</span>
                 {item.status === 'planned' && (
                   <span className="nav-status">planned</span>
