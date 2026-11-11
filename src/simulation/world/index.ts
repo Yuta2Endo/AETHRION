@@ -1,26 +1,27 @@
 /**
- * World Engine module (Stage 01 placeholder).
- * Responsible for global regions, map, and world state evolution.
- * Typed interface only — no implementation in Stage 01.
+ * World Engine — public surface.
+ * Baseline implementation (Stage 02).
  */
 
-export interface WorldRegion {
-  id: string;
-  name: string;
-  level: number;
-  influence: number;
-}
+export {
+  INITIAL_REGIONS,
+  INDICATOR_KEYS,
+  REGION_TIERS,
+  createInitialWorld,
+  findRegion,
+  getMarketActivityIndex,
+  getWorldMetrics,
+  isValidWorldState,
+} from './worldState';
+export type {
+  IndicatorKey,
+  RegionId,
+  RegionIndicators,
+  RegionTier,
+  WorldMetrics,
+  WorldRegion,
+  WorldState,
+} from './worldState';
 
-export interface WorldState {
-  regions: WorldRegion[];
-  activeRegionId: string | null;
-}
-
-export const defaultWorldState: WorldState = {
-  regions: [],
-  activeRegionId: null,
-};
-
-export function getWorldInfo(): WorldState {
-  return { ...defaultWorldState };
-}
+export { WORLD_RULES, evolveWorld, SIM_HOUR_MS } from './worldRules';
+export type { WorldContext } from './worldRules';

@@ -22,16 +22,40 @@ export function deepFreeze<T>(object: T): T {
 
 /**
  * Clamp a number between min and max.
+ * Non-finite input resolves to `min` so that invalid data can never leak into
+ * simulation calculations.
  */
 export function clamp(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
   return Math.min(Math.max(value, min), max);
+}
+
+/**
+ * True when the value is a finite number (not NaN, not Infinity).
+ */
+export function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+/**
+ * Round to a fixed number of decimals.
+ * Used to keep simulation state stable across repeated ticks by avoiding
+ * binary floating point drift in stored values.
+ */
+export function roundTo(value: number, decimals = 4): number {
+  if (!Number.isFinite(value)) return 0;
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
 }
 
 /**
  * Format a number with optional fixed decimals and compact suffix.
  */
 export function formatNumber(value: number, decimals = 2): string {
-  return value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
 }
 
 /**

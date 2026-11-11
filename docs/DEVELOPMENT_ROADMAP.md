@@ -1,8 +1,8 @@
 # AETHRION — Development Roadmap
 
 **Project:** AETHRION  
-**Stage:** 01 — Project Foundation & Architecture (current)  
-**Status:** Stage 02 awaiting user approval
+**Stage:** 02 — Game Core & Simulation Foundation (current)  
+**Status:** Stage 02 complete — Stage 03 awaiting user approval
 
 ---
 
@@ -21,24 +21,24 @@
 
 ---
 
-## Stage 02: Game Core & Simulation Foundation (next — pending user approval)
+## Completed — Stage 02: Game Core & Simulation Foundation
 
-Scope is limited to the simulation backbone. Business gameplay systems are explicitly out of scope for this stage.
+- **Game Core engine** rewritten: start / stop / pause / resume, controlled `step()`, idempotent start (no duplicate loops), deterministic system order, in-flight tick guard (no overlapping asynchronous ticks), per-frame tick cap (no uncontrolled catch-up), visibility-change handling, per-system error isolation, full resource cleanup.
+- **Game Clock** rewritten as a tick-driven simulated clock: in-game date/time, configurable speed multipliers, pause/resume, UTC-derived dates, no dependency on the system clock.
+- **Game state** reworked: simulation state separated from application state, controlled update actions, no domain logic inside Zustand, **localStorage persistence removed** (IndexedDB is a Stage 08 concern).
+- **World Engine baseline**: five fictional regions with stable identifiers, four development indicators, tier model, deterministic evolution rules, invalid-state rejection.
+- **Economy Engine baseline**: two currencies, four traded commodities, market prices, supply/demand indicators, deterministic price rules, numeric validation.
+- **Simulation integration**: `SimulationRunner` binds engine + clock + state + world + economy with an explicit tick execution order.
+- **Empire Dashboard** replaced the placeholder with a live simulation dashboard (empire overview, simulated date, status, speed, world regions, market prices and trends, start/pause/resume/stop and speed controls).
+- **UI library** extended with `StatCard`, `IndicatorBar`, `TrendIndicator`, `MarketValue`.
+- **Tests**: 85 passing (was 3) — engine, clock, world, economy, integration and component coverage.
+- Documentation updated; `docs/STAGE_02_FINAL_REPORT.md` created.
 
-- Game Core engine: game loop, tick scheduling, pause/resume, deterministic tick order.
-- Game clock integration (simulated time, speed control) wired into the engine.
-- Game state store (separate from application state) with typed selectors.
-- World Engine baseline: regions, world state evolution.
-- Economy Engine baseline: markets, currencies, pricing.
-- React screens bound to game state (empire overview dashboard replacing the placeholder).
-- Expand the UI component library with real data bindings.
-- Unit tests for game core, clock and simulation modules.
-
-**Explicitly NOT in Stage 02:** corporation creation, employee hiring, Web Worker integration, IndexedDB save/load. These are scheduled in Stages 03, 07 and 08 respectively.
+**Still deferred to later stages (unchanged):** corporation creation and employee hiring (Stage 03), Web Worker integration (Stage 07), IndexedDB save/load (Stage 08).
 
 ---
 
-## Stage 03: Corporation & Employee Engines
+## Stage 03: Corporation & Employee Engines (next — pending user approval)
 
 - Corporation creation and corporate structure.
 - Employee hiring, roles, salaries, performance.

@@ -1,7 +1,7 @@
 # AETHRION — Project Overview
 
 **Project:** AETHRION  
-**Stage:** 01 — Project Foundation & Architecture  
+**Stage:** 02 — Game Core & Simulation Foundation  
 **Mode:** GREENFIELD — Build from scratch  
 **Platform:** Android (Capacitor)  
 **Genre:** Hybrid Empire Simulator  
@@ -17,9 +17,11 @@ The player starts with a small technology corporation and gradually builds a glo
 
 The game combines: Business Tycoon, Economic Strategy, City Builder, Life Simulation, Technology Simulator, and Global Empire Management. The world must evolve in response to player decisions.
 
-## 2. Stage 01 Objective
+## 2. Stage Objectives
 
-Stage 01 is strictly a foundation stage. It does **not** implement the full game. The goal is to establish a professional, maintainable, and scalable development foundation for eventual commercial release on Google Play.
+### Stage 01 — Project Foundation & Architecture (complete)
+
+Stage 01 established a professional, maintainable, and scalable development foundation for eventual commercial release on Google Play.
 
 Acceptance criteria:
 1. New AETHRION project initialized.
@@ -34,6 +36,12 @@ Acceptance criteria:
 10. Tests configured and executed.
 11. Android integration status documented.
 12. All stage documentation created.
+
+### Stage 02 — Game Core & Simulation Foundation (complete)
+
+Stage 02 turned the foundation into a functional simulation backbone: a real tick loop, a simulated in-game clock, a typed game state, baseline World and Economy engines, their integration, and a live Empire Dashboard — with no gameplay systems from later stages pulled forward.
+
+See `docs/STAGE_02_FINAL_REPORT.md`.
 
 ## 3. Target Technology Stack
 
@@ -62,15 +70,15 @@ Android integrations planned for later stages: Google Play Billing, Google AdMob
 src/
   app/            # Application layer (React shell, navigation, providers)
   core/           # Cross-cutting concerns (config, events, logging, types, utils, error)
-  game/           # Game core (engine, state, clock, systems)
+  game/           # Game core (engine, state, clock, simulation runner)
   simulation/     # Domain engines (world, economy, corporation, technology, production,
                   # city, employees, events, competitors)
   rendering/      # Three.js rendering (scenes, cameras, objects, materials, lighting)
   ui/             # UI system (components, screens, theme, design-tokens)
   services/       # Persistence, audio, assets
-  workers/        # Web Workers (simulation)
+  workers/        # Web Workers — reserved for Stage 07
   platform/       # Platform integrations (android)
-  tests/          # Vitest setup + component tests
+  tests/          # Vitest setup + unit, integration and component tests
 ```
 
 ## 5. Development Rules
@@ -81,7 +89,7 @@ src/
 - Rendering and simulation independent (Three.js never holds game rules).
 - Document important interfaces.
 - Avoid circular dependencies.
-- No fake gameplay functionality in Stage 01.
+- No fake gameplay functionality.
 - No monetization (billing/ads) before gameplay foundations exist.
 - No production deployment.
 - No secrets or credentials committed.

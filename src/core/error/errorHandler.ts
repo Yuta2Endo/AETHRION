@@ -8,14 +8,7 @@
 
 import { logger } from '@/core/logging/logger';
 import { eventBus } from '@/core/events/eventBus';
-
-export interface AppError {
-  code: string;
-  message: string;
-  fatal?: boolean;
-  context?: Record<string, unknown>;
-  timestamp: number;
-}
+import type { AppError } from '@/core/types';
 
 export interface ErrorHandlerOptions {
   onUnhandled?: (_error: AppError) => void;
@@ -102,3 +95,5 @@ export function tryCatch<T>(fn: () => T): { ok: true; value: T } | { ok: false; 
     return { ok: false, error: errorHandler.handle(appError) };
   }
 }
+
+export type { AppError };

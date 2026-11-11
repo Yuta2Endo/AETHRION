@@ -171,7 +171,9 @@ Note: the plan specified `phosphor-react@^2.1.6`, but that package does not exis
 
 Configuration (13): package.json, tsconfig.json, tsconfig.node.json, vite.config.ts, vitest.config.ts, eslint.config.js, playwright.config.ts, capacitor.config.ts, index.html, .env.development, .env.production, .env.example, .gitignore.
 
-Source (51 files under src/): entry, App, CSS, vite-env.d.ts, app (shell, navigation, provider), core (config, events, logging, types, utils, error), game (engine, state, clock, systems), simulation (9 domain modules), rendering (index + 5 three.js submodules), ui (tokens, components x3, screens x2), services (persistence, audio, assets), workers dir, platform/android, tests (setup + Button test).
+Source (48 files under src/): entry, App, CSS, vite-env.d.ts, app (shell, navigation, provider), core (config, events, logging, types, utils, error), game (engine, state, clock, systems), simulation (9 domain modules), rendering (index + 5 three.js submodules), ui (tokens, components x3, screens x2), services (persistence, audio, assets), platform/android, tests (setup + Button test).
+
+> **Correction (Stage 02):** this section originally listed a `workers` directory and an incorrect file count. `src/workers/` was reserved for Stage 07 but was never created — no worker code existed in Stage 01. `src/platform/android/` was also silently excluded by the `android/` pattern in `.gitignore` and was therefore never committed; the `.gitignore` pattern was anchored to the repository root in Stage 02 and the file is now tracked. The tree above is corrected accordingly.
 
 Documentation (7): PROJECT_OVERVIEW.md, GAME_DESIGN_OVERVIEW.md, TECHNICAL_ARCHITECTURE.md, DESIGN_SYSTEM.md, DEVELOPMENT_ROADMAP.md, SECURITY_AUDIT.md, STAGE_01_FINAL_REPORT.md.
 
@@ -284,6 +286,8 @@ Playwright is configured (`playwright.config.ts`) but E2E tests were not execute
    - Not auto-fixed because every fix requires a semver-major upgrade (`vitest@5`, `vite@8`, `@capacitor/cli@8`); `typescript-eslint` has no fix available.
    - Risk is limited to the dev workstation: do not expose the Vite dev server to an untrusted network.
    - Remediation is scheduled as a dedicated maintenance task with full re-validation.
+5. `src/workers/` was listed in the Stage 01 file inventory but was never created — worker integration is a Stage 07 concern and no worker code was written. Corrected in the Stage 01 report file inventory and in the Stage 02 report.
+6. The `.gitignore` pattern `android/` (added for the Capacitor native project) matched `src/platform/android/` as well, so the Android platform integration source was never committed. Anchored to the repository root (`/android/`, `/ios/`) in Stage 02; the file is now tracked.
 
 ---
 

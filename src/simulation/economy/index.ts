@@ -1,21 +1,27 @@
 /**
- * Economy Engine module (Stage 01 placeholder).
- * Responsible for markets, currencies, pricing, and global trade.
- * Typed interface only — no implementation in Stage 01.
+ * Economy Engine — public surface.
+ * Baseline implementation (Stage 02).
  */
 
-export interface EconomySnapshot {
-  gdp: number;
-  inflation: number;
-  marketVolatility: number;
-}
+export {
+  COMMODITY_CATEGORIES,
+  INITIAL_COMMODITIES,
+  INITIAL_CURRENCIES,
+  createInitialEconomy,
+  findCommodity,
+  getEconomyMetrics,
+  getImbalance,
+  isValidEconomyState,
+} from './economyState';
+export type {
+  CommodityCategory,
+  CommodityId,
+  Currency,
+  CurrencyId,
+  EconomyMetrics,
+  EconomyState,
+  MarketCommodity,
+} from './economyState';
 
-export const defaultEconomy: EconomySnapshot = {
-  gdp: 0,
-  inflation: 0,
-  marketVolatility: 0,
-};
-
-export function getEconomySnapshot(): EconomySnapshot {
-  return { ...defaultEconomy };
-}
+export { ECONOMY_RULES, updateEconomy } from './economyRules';
+export type { EconomyContext } from './economyRules';

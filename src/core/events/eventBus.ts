@@ -2,15 +2,29 @@
  * Lightweight typed event bus.
  * Decouples modules without creating direct dependencies. Used for
  * application-level communication (e.g. UI <-> simulation state changes).
- * Game simulation should not depend on this bus.
+ * Game simulation does not depend on the bus — the engine exposes direct
+ * callbacks for internal wiring and only mirrors tick/status events here for
+ * app-level observers.
  */
+import type { SimulationStatus } from '@/core/types';
+
 type EventListener<T> = (_payload: T) => void;
 
 interface EventMap {
   'app:theme-change': string;
   'app:error': { message: string; fatal: boolean };
-  'simulation:tick': { delta: number; timestamp: number };
-  'simulation:state-change': { system: string; patch: unknown };
+  'simulation:tick': {
+    tick: number;
+    simTimeMs: number;
+    deltaMs: number;
+    realDeltaMs: number;
+  };
+  'simulation:status': {
+    status: SimulationStatus;
+    tick: number;
+    speed: number;
+  };
+  'simulation:state-change': { system: string; tick: number };
 }
 
 class EventBus {

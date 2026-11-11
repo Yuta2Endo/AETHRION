@@ -29,9 +29,9 @@ dist-ssr
 .env.production.local
 *.pem
 
-# Capacitor
-android/
-ios/
+# Capacitor native projects (root level only — src/platform/android must stay tracked)
+/android/
+/ios/
 
 # OS
 .DS_Store

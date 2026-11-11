@@ -10,7 +10,12 @@ interface NavigationItem {
   key: string;
   label: string;
   icon: React.ElementType;
-  status: 'ready' | 'planned';
+  /**
+   * ready   — implemented and interactive
+   * baseline— implemented at baseline scope (Stage 02)
+   * planned — reserved for a later stage, not implemented yet
+   */
+  status: 'ready' | 'baseline' | 'planned';
 }
 
 /**
@@ -23,8 +28,8 @@ export function MainNavigation({ onClose }: MainNavigationProps) {
 
   const items: NavigationItem[] = [
     { key: 'dashboard', label: 'Command Center', icon: House, status: 'ready' },
-    { key: 'world', label: 'World Engine', icon: Globe, status: 'planned' },
-    { key: 'economy', label: 'Economy Engine', icon: ChartLine, status: 'planned' },
+    { key: 'world', label: 'World Engine', icon: Globe, status: 'baseline' },
+    { key: 'economy', label: 'Economy Engine', icon: ChartLine, status: 'baseline' },
     { key: 'corporation', label: 'Corporation', icon: Buildings, status: 'planned' },
     { key: 'technology', label: 'Technology', icon: MagnifyingGlass, status: 'planned' },
     { key: 'production', label: 'Production', icon: Factory, status: 'planned' },
@@ -60,14 +65,17 @@ export function MainNavigation({ onClose }: MainNavigationProps) {
                 {item.status === 'planned' && (
                   <span className="nav-status">planned</span>
                 )}
+                {item.status === 'baseline' && (
+                  <span className="nav-status nav-status--baseline">baseline</span>
+                )}
               </button>
             </li>
           ))}
         </ul>
 
         <div className="nav-footer">
-          <div className="nav-footer-label">Stage 01 — Foundation</div>
-          <div className="nav-footer-label text-muted">Build from scratch · Greenfield</div>
+          <div className="nav-footer-label">Stage 02 — Game Core &amp; Simulation</div>
+          <div className="nav-footer-label text-muted">World &amp; Economy engines live</div>
         </div>
       </div>
     </nav>

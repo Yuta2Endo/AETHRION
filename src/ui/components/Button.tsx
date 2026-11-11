@@ -17,6 +17,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={`btn btn--${variant} btn--${size} ${className}`}
+        {...props}
         disabled={props.disabled || isLoading}
         aria-busy={isLoading || undefined}
       >

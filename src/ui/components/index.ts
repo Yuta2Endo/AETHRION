@@ -1,6 +1,14 @@
 export { Button } from './Button';
 export { Card } from './Card';
 export { Badge } from './Badge';
+export { StatCard } from './StatCard';
+export { IndicatorBar } from './IndicatorBar';
+export { TrendIndicator } from './TrendIndicator';
+export { MarketValue } from './MarketValue';
 export type { ButtonProps } from './Button';
 export type { CardProps } from './Card';
 export type { BadgeProps } from './Badge';
+export type { StatCardProps, StatCardTone } from './StatCard';
+export type { IndicatorBarProps, IndicatorTone } from './IndicatorBar';
+export type { TrendIndicatorProps } from './TrendIndicator';
+export type { MarketValueProps } from './MarketValue';

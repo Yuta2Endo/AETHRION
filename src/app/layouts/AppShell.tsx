@@ -5,12 +5,14 @@ import { MainNavigation } from '@/app/navigation/MainNavigation';
 import { useAppStore } from '@/app/providers/AppProvider';
 import { LoadingScreen } from '@/ui/screens/LoadingScreen';
 import { Dashboard } from '@/ui/screens/Dashboard';
+import { simulation } from '@/game/simulationRunner';
 
 /**
  * Main application shell.
- * Provides the persistent navigation shell and responsive layout.
- * Shows a branded loading screen while the app initializes, then the
- * dashboard. Game simulation remains independent of this shell.
+ * Provides the persistent navigation shell and responsive layout, and boots the
+ * simulation. The loading screen is shown until the simulation has produced
+ * its first tick — it reflects real initialisation, not a fixed delay.
+ * Game simulation remains independent of this shell.
  */
 export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -18,9 +20,21 @@ export function AppShell() {
   const { theme, toggleTheme } = useAppStore();
 
   useEffect(() => {
-    // Simulate foundation initialization, then reveal the dashboard.
-    const timer = setTimeout(() => setInitialized(true), 700);
-    return () => clearTimeout(timer);
+    const engine = simulation.getEngine();
+
+    // The application is initialised once the simulation produced real state.
+    const unsubscribe = engine.onTick(() => setInitialized(true));
+
+    simulation.start();
+
+    // Fallback so a stalled simulation never leaves the user on the loading screen.
+    const fallback = setTimeout(() => setInitialized(true), 3000);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(fallback);
+      simulation.stop();
+    };
   }, []);
 
   if (!initialized) {
