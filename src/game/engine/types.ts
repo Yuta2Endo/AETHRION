@@ -22,6 +22,12 @@ export interface SimulationContext {
   readonly deltaMs: number;
   /** Real milliseconds elapsed since the previous tick. */
   readonly realDeltaMs: number;
+  /**
+   * Simulated milliseconds elapsed since the simulation started.
+   * Deterministic and independent of the wall clock — the basis for
+   * period-based rules such as payroll.
+   */
+  readonly elapsedSimMs: number;
 }
 
 /**

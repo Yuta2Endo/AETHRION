@@ -1,24 +1,71 @@
 /**
- * Employee Engine module (Stage 01 placeholder).
- * Responsible for hiring, roles, salaries, and employee performance.
- * Typed interface only — no implementation in Stage 01.
+ * Employee Engine — public surface.
+ * Stage 03 implementation.
  */
 
-export interface Employee {
-  id: string;
-  name: string;
-  role: string;
-  salary: number;
-}
+export {
+  MAX_DEVELOPMENT_ENTRIES,
+  MAX_EMPLOYEE_SALARY,
+  MIN_EMPLOYEE_SALARY,
+  PROFESSIONS,
+  createInitialEmployeeState,
+  findEmployee,
+  generateEmployeeId,
+  generateEmployeeName,
+  getActiveEmployees,
+  getProfession,
+  getWorkforceProductivity,
+  isProfessionId,
+  isValidEmployee,
+  isValidEmployeeState,
+} from './employeeState';
+export type {
+  Employee,
+  EmployeeDevelopment,
+  EmployeeId,
+  EmployeeState,
+  EmploymentStatus,
+  Profession,
+  ProfessionId,
+} from './employeeState';
 
-export interface EmployeeState {
-  employees: Employee[];
-}
+export {
+  HIRING_FLAT_FEE,
+  INITIAL_MORALE,
+  INITIAL_SATISFACTION,
+  MORALE_BASE,
+  MORALE_DRIFT,
+  PRODUCTIVITY_MAX,
+  SALARY_FAIRNESS_WEIGHT,
+  SATISFACTION_DRIFT,
+  SKILL_CONVERGENCE,
+  SKILL_PER_EXPERIENCE,
+  calculateHiringCost,
+  createEmployee,
+  developEmployees,
+  dismissEmployee,
+  hireEmployee,
+  isValidSalary,
+} from './employeeRules';
+export type {
+  CreateEmployeeInput,
+  DismissEmployeeResult,
+  EmployeeContext,
+  HireEmployeeInput,
+  HireEmployeeResult,
+} from './employeeRules';
 
-export const defaultEmployeeState: EmployeeState = {
-  employees: [],
-};
-
-export function getEmployeeState(): EmployeeState {
-  return { ...defaultEmployeeState };
-}
+export {
+  MISSED_PAYROLL_MORALE_PENALTY,
+  MISSED_PAYROLL_SATISFACTION_PENALTY,
+  PAYROLL_PERIOD_MS,
+  applyPayroll,
+  calculatePayroll,
+  getPayrollPeriod,
+} from './payroll';
+export type {
+  ApplyPayrollContext,
+  ApplyPayrollResult,
+  PayrollPeriod,
+  PayrollSummary,
+} from './payroll';

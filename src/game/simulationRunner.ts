@@ -3,9 +3,12 @@
  * and the domain engines into one running simulation.
  *
  * Tick execution order (deterministic):
- *   1. Game Clock  — advances simulated time (engine-owned, before systems)
- *   2. World Engine — evolves regions from the new simulated time
- *   3. Economy Engine — updates markets using the world produced in step 2
+ *   1. Game Clock      — advances simulated time (engine-owned, before systems)
+ *   2. World Engine    — evolves regions from the new simulated time
+ *   3. Economy Engine  — updates markets using the world produced in step 2
+ *   4. Employee Engine — develops the workforce and records development history
+ *   5. Corporation Engine — accrues revenue and operating costs, processes
+ *      payroll for the period and updates the corporate progression
  *
  * The runner owns the wiring only. Every rule lives in `src/simulation/*`,
  * every lifecycle rule lives in `src/game/engine/*` and every state write
@@ -18,7 +21,19 @@ import { GameClock, type GameClockConfig } from '@/game/clock/gameClock';
 import { GameEngine } from '@/game/engine/gameEngine';
 import type { EngineScheduler } from '@/game/engine/scheduler';
 import { useGameStore } from '@/game/state/gameStore';
+import {
+  accrueFinances,
+  getPlayerCorporation,
+  updateProgression,
+  type CorporationContext,
+} from '@/simulation/corporation';
 import { updateEconomy } from '@/simulation/economy';
+import {
+  applyPayroll,
+  developEmployees,
+  getActiveEmployees,
+  getPayrollPeriod,
+} from '@/simulation/employees';
 import { evolveWorld, getMarketActivityIndex } from '@/simulation/world';
 
 /**
@@ -28,6 +43,8 @@ import { evolveWorld, getMarketActivityIndex } from '@/simulation/world';
 export const SIMULATION_SYSTEM_ORDER = {
   world: 10,
   economy: 20,
+  employees: 30,
+  corporation: 40,
 } as const;
 
 /** Speed multipliers offered by the interface. */
@@ -94,6 +111,70 @@ export class SimulationRunner {
         store.applyEconomyState(next);
       },
     });
+
+    this.engine.registerSystem({
+      name: 'employees',
+      order: SIMULATION_SYSTEM_ORDER.employees,
+      update: (context) => {
+        const store = useGameStore.getState();
+        const period = getPayrollPeriod(context.elapsedSimMs);
+        const next = developEmployees(store.employees, {
+          tick: context.tick,
+          deltaMs: context.deltaMs,
+          elapsedSimMs: context.elapsedSimMs,
+          periodId: period.id,
+        });
+        store.applyEmployeeState(next);
+      },
+    });
+
+    this.engine.registerSystem({
+      name: 'corporation',
+      order: SIMULATION_SYSTEM_ORDER.corporation,
+      update: (context) => {
+        const store = useGameStore.getState();
+        const corporation = getPlayerCorporation(store.corporation);
+        if (!corporation) return;
+
+        const employees = getActiveEmployees(store.employees);
+        const workforceProductivity = employees.reduce(
+          (total, employee) => total + employee.productivity,
+          0,
+        );
+
+        const period = getPayrollPeriod(context.elapsedSimMs);
+        const corporationContext: CorporationContext = {
+          tick: context.tick,
+          deltaMs: context.deltaMs,
+          elapsedSimMs: context.elapsedSimMs,
+          periodId: period.id,
+          workforceProductivity,
+          employeeCount: employees.length,
+        };
+
+        // 1. Accrue revenue and operating costs for the elapsed time.
+        let next = accrueFinances(corporation, corporationContext);
+
+        // 2. Process the payroll of the current period — at most once.
+        const payroll = applyPayroll(next, employees, {
+          elapsedSimMs: context.elapsedSimMs,
+          simTimeMs: context.simTimeMs,
+        });
+        next = payroll.corporation;
+        store.applyEmployeeState({ ...store.employees, employees: payroll.employees });
+
+        // 3. Update reputation, tier and status.
+        next = updateProgression(next, corporationContext);
+
+        store.applyCorporationState({
+          ...store.corporation,
+          corporations: store.corporation.corporations.map((candidate) =>
+            candidate.id === next.id ? next : candidate,
+          ),
+          tick: store.corporation.tick + 1,
+        });
+      },
+    });
   }
 
   private bindStore(): void {
@@ -105,6 +186,7 @@ export class SimulationRunner {
         store.applySimulationMeta({
           tick: context.tick,
           simTimeMs: context.simTimeMs,
+          elapsedSimMs: context.elapsedSimMs,
           date,
           speed: this.clock.getSpeed(),
           status: this.engine.getStatus(),

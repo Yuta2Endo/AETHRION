@@ -5,10 +5,8 @@ import {
   Coins,
   Globe,
   House,
-  MapPin,
   Pause,
   Play,
-  Rocket,
   ShieldCheck,
   Stop,
   Target,
@@ -18,7 +16,6 @@ import { useGameStore } from '@/game/state/gameStore';
 import {
   selectCommodities,
   selectEconomy,
-  selectEmpire,
   selectSimulationDate,
   selectSimulationSpeed,
   selectSimulationStatus,
@@ -26,9 +23,13 @@ import {
   selectWorld,
 } from '@/game/state/selectors';
 import { SIMULATION_SPEEDS, simulation } from '@/game/simulationRunner';
-import { formatGameDate, formatGameDateShort } from '@/game/clock/gameClock';
+import { formatGameDate } from '@/game/clock/gameClock';
 import { getEconomyMetrics, getImbalance } from '@/simulation/economy';
 import { getWorldMetrics, type RegionTier } from '@/simulation/world';
+import { CorporationOverview } from '@/ui/screens/sections/CorporationOverview';
+import { EmployeeManagement } from '@/ui/screens/sections/EmployeeManagement';
+import { FinanceOverview } from '@/ui/screens/sections/FinanceOverview';
+import { HiringPanel } from '@/ui/screens/sections/HiringPanel';
 import type { SimulationStatus } from '@/core/types';
 
 /**
@@ -42,7 +43,6 @@ export function Dashboard() {
   const tick = useGameStore(selectSimulationTick);
   const speed = useGameStore(selectSimulationSpeed);
   const date = useGameStore(selectSimulationDate);
-  const empire = useGameStore(selectEmpire);
   const world = useGameStore(selectWorld);
   const economy = useGameStore(selectEconomy);
   const commodities = useGameStore(selectCommodities);
@@ -51,7 +51,6 @@ export function Dashboard() {
   const economyMetrics = useMemo(() => getEconomyMetrics(economy), [economy]);
 
   const baseSymbol = economy.currencies[0]?.symbol ?? 'AΞ';
-  const homeRegion = world.regions.find((region) => region.id === empire.homeRegionId);
 
   return (
     <div className="dashboard-screen">
@@ -141,40 +140,17 @@ export function Dashboard() {
         </div>
       </section>
 
-      {/* ----------------------------------------------------- empire overview */}
-      <section className="section-block" aria-label="Empire overview">
-        <h2 className="section-title">
-          <Rocket size={18} aria-hidden="true" /> Empire Overview
-        </h2>
-        <div className="stat-grid">
-          <StatCard
-            label="Empire"
-            value={empire.name}
-            hint={empire.charter}
-            icon={Rocket}
-            tone="brand"
-          />
-          <StatCard
-            label="Founded"
-            value={empire.foundedOn ? formatGameDateShort(empire.foundedOn) : '—'}
-            hint={empire.foundedOn ? 'In-game calendar' : 'Awaiting first tick'}
-            icon={Clock}
-          />
-          <StatCard
-            label="Home Region"
-            value={homeRegion?.name ?? '—'}
-            hint={homeRegion ? homeRegion.tier : 'Not established'}
-            icon={MapPin}
-            tone="accent"
-          />
-          <StatCard
-            label="World Regions"
-            value={worldMetrics.regionCount}
-            hint={`Avg development ${worldMetrics.averageDevelopment}`}
-            icon={Globe}
-          />
-        </div>
-      </section>
+      {/* ------------------------------------------------ corporation overview */}
+      <CorporationOverview />
+
+      {/* ---------------------------------------------------- employee management */}
+      <EmployeeManagement />
+
+      {/* ------------------------------------------------------------- hiring */}
+      <HiringPanel />
+
+      {/* ------------------------------------------------------ finance overview */}
+      <FinanceOverview />
 
       {/* ------------------------------------------------------ world overview */}
       <section className="section-block" aria-label="World overview">

@@ -1,7 +1,7 @@
 # AETHRION — Design System
 
 **Project:** AETHRION  
-**Stage:** 02 — Game Core & Simulation Foundation
+**Stage:** 03 — Corporation & Employee Engines
 
 ## 1. Brand Identity
 
@@ -51,6 +51,10 @@ Numeric values use the mono typeface (`.text-mono`) with tabular figures so valu
 | `IndicatorBar` | Labelled 0..max progress bar with `role="meter"` | cyan, purple, success, warning |
 | `TrendIndicator` | Signed change with direction arrow | up, down, flat (derived) |
 | `MarketValue` | One traded commodity: name, category, price, change, market pressure | pressure: balanced / demand / supply |
+| `TextField` | Labelled text input with hint and validation message | — |
+| `SelectField` | Labelled select with hint and validation message | — |
+| `EmployeeRow` | One employee: identity, status, skill, productivity, satisfaction, morale, salary | status: active / at-risk / departed |
+| `TransactionRow` | One ledger entry: type, description, amount, resulting balance | income / expense / flat |
 
 All styled via CSS custom properties. No hardcoded brand colors. No duplicated business logic — components receive values and render them.
 
@@ -61,7 +65,7 @@ Responsive layout with top bar (brand, theme toggle, actions), collapsible sideb
 ## 7. Screens
 
 - `LoadingScreen` — branded initialization screen, shown until the simulation produced its first tick.
-- `Dashboard` — the **Empire Dashboard**: simulation control panel, empire overview, world overview with region indicators, economy overview with market prices and trends. Every value is read from the live simulation state.
+- `Dashboard` — the **Empire Dashboard**: simulation control panel, corporation overview, employee management, hiring, finance overview, world overview with region indicators, economy overview with market prices and trends. Every value is read from the live simulation state.
 
 ### Dashboard layout
 
@@ -70,8 +74,17 @@ Responsive layout with top bar (brand, theme toggle, actions), collapsible sideb
 │  Command Center                                              (h1)     │
 ├─ simulation control panel ────────────────────────────────────────────┤
 │  status badge · tick · speed │ start · pause · resume · stop │ 0.5-4x  │
-├─ Empire Overview ──────────────────────────────────────────────────────┤
-│  empire · founded · home region · world regions                      │
+├─ Corporation Overview ────────────────────────────────────────────────┤
+│  name · tier · status  │  balance · revenue · expenses · net profit    │
+│                         │  employees · reputation · productivity       │
+├─ Employee Management ─────────────────────────────────────────────────┤
+│  one card per employee: identity, status, skill, productivity,         │
+│  satisfaction, morale, salary                                         │
+├─ Hire Personnel ──────────────────────────────────────────────────────┤
+│  profession · department · salary │ hiring fee │ hire button          │
+├─ Finance Overview ─────────────────────────────────────────────────────┤
+│  balance · period revenue · expenses · payroll · next payroll          │
+│  recent transactions                                                  │
 ├─ World Overview ───────────────────────────────────────────────────────┤
 │  aggregate metrics │ region cards with four indicator bars each       │
 ├─ Economy Overview ─────────────────────────────────────────────────────┤
@@ -81,12 +94,15 @@ Responsive layout with top bar (brand, theme toggle, actions), collapsible sideb
 
 ### Responsive behaviour
 
-At ≤ 720 px the control panel stacks vertically, the market table collapses from a four-column grid into a two-column card layout, and the header date block is hidden. Region and metric grids reflow to a single column.
+At ≤ 720 px the control panel stacks vertically, the market and transaction tables collapse from multi-column grids into two-column card layouts, the header date block is hidden and the establishment form stacks. Region, metric and employee grids reflow to a single column.
 
 ### Accessibility
 
-- Every interactive element is a real `<button>` with an accessible name.
+- Every interactive element is a real `<button>` with an accessible name; form controls are real `<input>` / `<select>` elements bound to their labels.
+- Validation messages are rendered with `role="alert"` and bound through `aria-describedby`; invalid fields carry `aria-invalid`.
+- Hiring feedback uses `role="status"` for success and `role="alert"` for errors.
 - Indicator bars expose `role="meter"` with `aria-valuenow` / `aria-valuemin` / `aria-valuemax`.
 - Speed controls are grouped with `role="group"` and use `aria-pressed`.
 - Decorative icons are `aria-hidden`.
 - The dashboard has a single `h1` and labelled `section` regions (`aria-label`).
+- Empty states use a dashed container and explain what to do next.

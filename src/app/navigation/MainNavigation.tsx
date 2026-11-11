@@ -30,11 +30,11 @@ export function MainNavigation({ onClose }: MainNavigationProps) {
     { key: 'dashboard', label: 'Command Center', icon: House, status: 'ready' },
     { key: 'world', label: 'World Engine', icon: Globe, status: 'baseline' },
     { key: 'economy', label: 'Economy Engine', icon: ChartLine, status: 'baseline' },
-    { key: 'corporation', label: 'Corporation', icon: Buildings, status: 'planned' },
+    { key: 'corporation', label: 'Corporation', icon: Buildings, status: 'baseline' },
     { key: 'technology', label: 'Technology', icon: MagnifyingGlass, status: 'planned' },
     { key: 'production', label: 'Production', icon: Factory, status: 'planned' },
     { key: 'city', label: 'City Engine', icon: MapPin, status: 'planned' },
-    { key: 'employees', label: 'Employees', icon: Users, status: 'planned' },
+    { key: 'employees', label: 'Employees', icon: Users, status: 'baseline' },
     { key: 'competitors', label: 'Competitor AI', icon: ShieldWarning, status: 'planned' },
     { key: 'save', label: 'Save & Archive', icon: Rocket, status: 'planned' },
   ];
@@ -74,8 +74,8 @@ export function MainNavigation({ onClose }: MainNavigationProps) {
         </ul>
 
         <div className="nav-footer">
-          <div className="nav-footer-label">Stage 02 — Game Core &amp; Simulation</div>
-          <div className="nav-footer-label text-muted">World &amp; Economy engines live</div>
+          <div className="nav-footer-label">Stage 03 — Corporation &amp; Employees</div>
+          <div className="nav-footer-label text-muted">World, economy &amp; workforce live</div>
         </div>
       </div>
     </nav>

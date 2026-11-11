@@ -1,8 +1,8 @@
 # AETHRION — Development Roadmap
 
 **Project:** AETHRION  
-**Stage:** 02 — Game Core & Simulation Foundation (current)  
-**Status:** Stage 02 complete — Stage 03 awaiting user approval
+**Stage:** 03 — Corporation & Employee Engines (current)  
+**Status:** Stage 03 complete — Stage 04 awaiting user approval
 
 ---
 
@@ -38,21 +38,29 @@
 
 ---
 
-## Stage 03: Corporation & Employee Engines (next — pending user approval)
+## Completed — Stage 03: Corporation & Employee Engines
 
-- Corporation creation and corporate structure.
-- Employee hiring, roles, salaries, performance.
-- Employee Engine ↔ Corporation Engine integration.
-- Player-facing corporation management screens.
+- **Corporation Engine**: creation with validation, a single player corporation, a flat six-department structure, a data-driven tier table, complete financial model (balance, revenue, operating expenses, payroll expenses, net profit), a bounded transaction ledger and bounded financial history.
+- **Employee Engine**: employee model with skill, experience, salary, productivity, satisfaction, morale and employment status; five data-driven professions; deterministic hiring with department availability, capacity and funds checks; deterministic development model (experience, skill, satisfaction, morale, productivity) with a bounded development history.
+- **Payroll model**: a fixed seven in-game day period derived from the simulated clock, at-most-once processing per period, a full payroll or a recorded miss — never partial payment and never created money.
+- **Simulation integration**: the employee and corporation systems were added to the runner (orders 30 and 40), preserving the world → economy order; the workforce developed in a tick feeds the corporation in the same tick.
+- **Command layer** (`src/game/commands.ts`): the single entry point for player actions — establish corporation, hire, dismiss. All validation errors are surfaced to the interface.
+- **Game state**: `corporation` and `employees` slices added, typed selectors extended, still no persistence and no domain logic inside Zustand.
+- **Interface**: Corporation Overview, Employee Management, Hiring and Finance Overview sections added to the dashboard; new primitives `TextField`, `SelectField`, `EmployeeRow`, `TransactionRow`; empty, error and success states.
+- **Tests**: 170 passing (was 85) — corporation, employee, payroll, integration and interface coverage.
+- Documentation updated; `docs/STAGE_03_FINAL_REPORT.md` created.
+
+**Still deferred to later stages (unchanged):** technology tree, production and manufacturing (Stage 04), cities (Stage 05), events and competitor AI (Stage 06), Web Workers (Stage 07), IndexedDB save/load (Stage 08), Three.js world rendering (Stage 09).
 
 ---
 
-## Stage 04: Technology & Production Engines
+## Stage 04: Technology & Production Engines (next — pending user approval)
 
 - Technology tree, research progress, unlocks.
 - Factories, products, manufacturing.
 - Supply chains and logistics.
 - Research and factory management screens.
+- Connection of the corporate market signal to the Economy Engine.
 
 ---
 

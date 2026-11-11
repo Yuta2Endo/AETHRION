@@ -1,7 +1,7 @@
 # AETHRION — Technical Architecture
 
 **Project:** AETHRION  
-**Stage:** 02 — Game Core & Simulation Foundation
+**Stage:** 03 — Corporation & Employee Engines
 
 ## 1. Layered Architecture
 
@@ -13,34 +13,39 @@ Clear separation of responsibilities across layers.
 ├─────────────────────────────────────┤
 │  UI System (React + Framer Motion)  │  ← application interface
 ├─────────────────────────────────────┤
+│  Command Layer (game/commands.ts)   │  ← the only entry point for actions
+├─────────────────────────────────────┤
 │  App State (Zustand — app store)    │  ← application-facing state
+├─────────────────────────────────────┤
+│  Game State (Zustand — game store)  │  ← canonical simulation state
 ├─────────────────────────────────────┤
 │  Rendering Engine (Three.js)        │  ← rendering only, no game rules
 ├─────────────────────────────────────┤
 │  Game Core (engine, state, clock)   │  ← simulation orchestration
 ├─────────────────────────────────────┤
-│  Simulation Engines (domain)        │  ← world, economy, corp, tech, …
+│  Simulation Engines (domain)        │  ← world, economy, corporation, …
 ├─────────────────────────────────────┤
 │  Core (config, events, logging, …)  │  ← cross-cutting concerns
 └─────────────────────────────────────┘
 ```
 
-Dependency direction is strictly downward. The simulation never imports React; the rendering engine never contains game rules.
+Dependency direction is strictly downward. The simulation never imports React; the rendering engine never contains game rules; the domain engines never import the game layer.
 
 ## 2. Module Responsibilities
 
 | Module | Responsibility | Depends On |
 |--------|----------------|------------|
 | Application Core | App entry, providers, navigation, shell | React, Zustand |
-| Game Core | Game loop, game state, clock, system registry | Core |
+| Command Layer | Validates and applies player actions | Game State, Simulation |
+| Game Core | Tick loop, game state, clock, system registry | Core |
 | Simulation Runner | Binds engine + clock + state + domain engines | Game Core, Simulation |
 | World Engine | Regions, indicators, world-state evolution | Core |
 | Economy Engine | Currencies, markets, prices, supply/demand | Core |
-| Corporation Engine | Corporations, employees, hiring | Core |
+| **Corporation Engine** | Corporation, departments, tiers, finances, ledger | Core, Contracts |
+| **Employee Engine** | Employees, professions, hiring, development | Core, Contracts, Corporation |
 | Technology Engine | Tech tree, research, unlocks | Core |
 | Production Engine | Factories, products, supply chains | Core |
 | City Engine | Cities, buildings | Core |
-| Employee Engine | Hiring, roles, salaries | Core |
 | Events Engine | World events, news | Core |
 | Competitor AI Engine | AI corporations | Core |
 | Save & Archive | IndexedDB persistence | idb |
@@ -48,7 +53,11 @@ Dependency direction is strictly downward. The simulation never imports React; t
 | UI System | Components, screens, theme, tokens | React, Framer Motion |
 | Platform Integration | Capacitor, Android | Capacitor |
 
-## 3. Game Core Engine (`src/game/engine/`)
+## 3. Cross-Engine Contracts (`src/simulation/contracts.ts`)
+
+Plain, dependency-free types shared by two or more engines: the base currency, the corporate department model and the `CorporateMarketSignal` integration boundary. This module holds **no engine logic** — it only provides the vocabulary that lets the engines talk to each other without importing each other.
+
+## 4. Game Core Engine (`src/game/engine/`)
 
 | File | Responsibility |
 |------|----------------|
@@ -66,17 +75,21 @@ Dependency direction is strictly downward. The simulation never imports React; t
 - **Error isolation** — a throwing system is recorded in `failedSystems` / `lastError`; the remaining systems still run.
 - **Cleanup** — `dispose()` cancels the frame, clears systems and listeners, and removes the `visibilitychange` subscription.
 
-### Tick flow
+### SimulationContext
 
-```
-frame → accumulator += realDelta
-      → while (accumulator >= tickDurationMs && executed < maxTicksPerFrame)
-          accumulator -= tickDurationMs
-          runTick(tickDurationMs)
-      → runTick: clock.advanceTick() → build context → run systems in order
+```ts
+interface SimulationContext {
+  readonly tick: number;
+  readonly simTimeMs: number;     // simulated epoch milliseconds
+  readonly deltaMs: number;       // simulated milliseconds advanced by this tick
+  readonly realDeltaMs: number;   // real milliseconds since the previous tick
+  readonly elapsedSimMs: number;  // simulated milliseconds since the simulation started
+}
 ```
 
-## 4. Game Clock (`src/game/clock/gameClock.ts`)
+`elapsedSimMs` (added in Stage 03) is the deterministic basis for period-based rules such as payroll — it never depends on the wall clock.
+
+## 5. Game Clock (`src/game/clock/gameClock.ts`)
 
 Tick-driven simulated time. The clock **never reads the system clock** — simulated time is only advanced by `advanceTick()`, which the engine calls once per tick.
 
@@ -87,67 +100,197 @@ Tick-driven simulated time. The clock **never reads the system clock** — simul
 | `baseSimMsPerTick` | Simulated milliseconds per tick at 1x (default 1 simulated hour) |
 | `speedMultiplier` | 0.25 … 16, applied to `baseSimMsPerTick` |
 
-Real time and simulated time are separate: the engine measures real elapsed time, the clock accumulates simulated time. Dates are derived in **UTC**, so results never depend on the host timezone. `reset()` restores time, speed and the pause flag.
+Dates are derived in **UTC**, so results never depend on the host timezone. `reset()` restores time, speed and the pause flag.
 
-## 5. State Separation
+## 6. State Separation
 
 Two distinct Zustand stores:
 
 - `src/app/providers/AppProvider.tsx` — **application state** (theme, sidebar, version), persisted to `sessionStorage`.
-- `src/game/state/gameStore.ts` — **simulation state** (`empire`, `world`, `economy`, `simulation`), **not persisted**.
+- `src/game/state/gameStore.ts` — **simulation state**, **not persisted**:
 
-The game store:
-- contains **no domain logic** — it stores the results produced by the domain modules;
-- exposes **controlled updates** (`applyWorldState`, `applyEconomyState`, `applySimulationMeta`, `applyEmpire`);
-- keeps only plain, serialisable data so it can be snapshotted later;
-- does **not** use the zustand `persist` middleware. Persistent storage is an IndexedDB concern reserved for Stage 08.
+| Slice | Owner | Content |
+|-------|-------|---------|
+| `empire` | game store | Global empire identity |
+| `world` | World Engine | Regions and indicators |
+| `economy` | Economy Engine | Currencies, commodities, prices |
+| `corporation` | Corporation Engine | Corporation record, finances, ledger |
+| `employees` | Employee Engine | Employee records |
+| `simulation` | Game Core | Status, tick, simulated time, date, speed |
 
-`src/game/state/selectors.ts` holds typed selectors that return primitives or stable slice references, keeping re-renders narrow. Derived metrics are computed by the domain modules (`getWorldMetrics`, `getEconomyMetrics`) inside `useMemo` — never duplicated in the UI.
+The game store contains **no domain logic** — it stores the results produced by the domain modules and exposes controlled update actions. It does **not** use the zustand `persist` middleware; persistent storage is an IndexedDB concern reserved for Stage 08.
 
-## 6. Simulation Runner (`src/game/simulationRunner.ts`)
+**Ownership rule:** the Corporation Engine never stores employee data. Headcount and workforce statistics are *derived* by `getCorporationStatistics(corporation, workforce)`, which accepts a minimal structural `WorkforceMember` view — so the Corporation Engine does not import the Employee Engine.
 
-The single place where the layers are wired together. It registers the domain systems with the engine and mirrors the engine lifecycle into the game store.
+`src/game/state/selectors.ts` holds typed selectors returning primitives or stable slice references, keeping re-renders narrow.
+
+## 7. Command Layer (`src/game/commands.ts`)
+
+The **only** entry point for player actions. The interface calls commands; commands validate, apply the domain rules and write the result to the game state exactly once. No simulation rule is ever executed inside a React component.
+
+| Command | Behaviour |
+|---------|-----------|
+| `createCorporation({ name })` | Validates the name, creates the single player corporation, links it as `playerCorporationId` |
+| `hireEmployee({ profession, department, salary? })` | Validates profession, department availability, capacity, salary and funds; creates the employee and charges the hiring fee |
+| `dismissEmployee(id)` | Marks the employee as departed |
+
+Every command returns a `Result<T, AppError>` so the interface can display a precise validation message.
+
+## 8. Corporation Engine (`src/simulation/corporation/`)
+
+| File | Responsibility |
+|------|----------------|
+| `corporationState.ts` | Corporation record, tier table, finances, transactions, validation |
+| `corporationRules.ts` | Creation, transactions, accrual, progression, statistics |
+
+### Data model
 
 ```ts
-const simulation = new SimulationRunner(); // application-wide instance
-simulation.start(); simulation.pause(); simulation.resume(); simulation.stop();
-simulation.setSpeed(2); await simulation.step();
+interface Corporation {
+  id: string;                    // stable, deterministic
+  name: string;
+  foundedAtSimMs: number;        // simulated time, not a wall-clock date
+  tierId: string; level: number;
+  status: 'active' | 'thriving' | 'strained' | 'insolvent';
+  reputation: number;            // 0..100
+  finances: CorporationFinances;
+  transactions: CorporationTransaction[];   // bounded to 50
+  financialHistory: FinancialSnapshot[];    // bounded to 24 periods
+  lastPayrollPeriodId: string | null;       // duplicate-payroll guard
+  missedPayrollCount: number;
+  transactionSequence: number;              // deterministic transaction ids
+}
 ```
 
-## 7. Event Communication
+### Departments
 
-`src/core/events/eventBus.ts` — a typed event bus decoupling modules. Simulation events are mirrored there for app-level observers (`simulation:tick`, `simulation:status`), while the engine exposes direct callbacks (`onTick`, `onStatusChange`) for internal wiring — the simulation itself never depends on the bus.
+`management`, `research`, `engineering`, `production`, `marketing`, `finance` — defined in `src/simulation/contracts.ts`. Each tier exposes the departments it may staff.
 
-## 8. Error Handling
+### Tiers
 
-`src/core/error/errorHandler.ts` — centralized error handler. Installs global `window.onerror` and `unhandledrejection` handlers, logs via the logger, emits `app:error` events and exposes a `tryCatch` Result helper. `AppError` is defined once in `src/core/types/index.ts` and re-exported, so the error handler and the event bus share a single definition without a circular import.
+The tier table is **data driven** (`CORPORATION_TIERS`): id, level, name, employee capacity, revenue and operating-cost factors, available departments and the revenue / reputation / headcount requirements to reach it. A new tier is added by extending the table — no engine code changes.
 
-Domain engines reject invalid input safely: `evolveWorld` and `updateEconomy` validate their state and context, log the failure and return the incoming state **unchanged**, so a corrupted state can never propagate through the simulation.
+### Financial rules
 
-## 9. Logging
+- `balance` is never negative. A transaction that would overdraw is **rejected** and the corporation is returned unchanged.
+- Non-finite amounts are rejected.
+- Revenue accrues from the total workforce productivity; operating costs from the base cost plus a cost per employee, both scaled by the elapsed simulated time and the tier factors.
+- Reputation drifts toward a target derived from lifetime revenue and lifetime net profit.
+- Ledger and history are bounded — no unbounded growth.
+
+## 9. Employee Engine (`src/simulation/employees/`)
+
+| File | Responsibility |
+|------|----------------|
+| `employeeState.ts` | Employee record, profession table, validation, deterministic naming |
+| `employeeRules.ts` | Creation, hiring, dismissal, development |
+| `payroll.ts` | Payroll period model, calculation, processing |
+
+### Data model
+
+```ts
+interface Employee {
+  id: string;                    // 'emp_0001' — deterministic sequence
+  name: string;                  // derived from the sequence
+  profession: ProfessionId;
+  department: DepartmentId;
+  skill: number;                 // 0..100
+  experience: number;            // simulated hours
+  salary: number;                // paid per payroll period
+  productivity: number;          // 0..100
+  satisfaction: number;          // 0..100
+  morale: number;                // 0..100
+  status: 'active' | 'at-risk' | 'departed';
+  hiredAtSimMs: number;
+  lastDevelopmentPeriodId: string | null;
+  development: EmployeeDevelopment[];   // bounded to 12 entries
+}
+```
+
+### Professions
+
+`manager`, `researcher`, `engineer`, `production-worker`, `marketer` — a data-driven table with base salary, base skill, experience rate, productivity weight, hiring-cost factor and satisfaction target. New professions are added by extending the table and the `ProfessionId` union.
+
+### Development rules (deterministic, no randomness)
+
+```
+experience += profession.experienceRate × hours
+skill        ← converge(skill, baseSkill + experience × 0.35, 0.05/h)
+satisfaction ← converge(satisfaction, profession.target + salaryFairness, 0.04/h)
+morale       ← converge(morale, 30 + satisfaction × 0.7, 0.03/h)
+productivity  = clamp(skill × profession.weight + (satisfaction − 50) × 0.2, 0, 100)
+```
+
+`converge` clamps its factor to 0..1, so a long simulated step can never overshoot the target.
+
+### Hiring
+
+Validated in order: profession → department → department availability at the tier → employee capacity → salary → available funds. A failed requirement returns a typed error and changes nothing. The hiring fee is `200 + salary × profession.hiringCostFactor`.
+
+## 10. Payroll Model (`src/simulation/employees/payroll.ts`)
+
+- A payroll **period** is a fixed slice of simulated time: `PAYROLL_PERIOD_MS` = 7 in-game days.
+- The period identifier is derived from `elapsedSimMs` (`period_0000`, `period_0001`, …) — it never depends on the wall clock.
+- The corporation stores `lastPayrollPeriodId`. A period that has already been processed is **skipped** — a period can never be paid twice.
+- A period is settled the first time the simulation observes it; the financial snapshot of the period is written when it closes and the period counters are reset.
+- **Insufficient funds:** the payroll is not paid in part. No money is created. A `payroll-missed` transaction with the shortfall is recorded, `missedPayrollCount` is incremented, the workforce is put on `at-risk` and satisfaction (−15) and morale (−20) are reduced. A later successful payroll restores the `active` status.
+
+## 11. Simulation Integration
+
+`src/game/simulationRunner.ts` registers four systems in a fixed order:
+
+```
+1. Game Clock      — advances simulated time (engine-owned, before the systems)
+2. World Engine    — order 10
+3. Economy Engine  — order 20   ← consumes the world produced in step 2
+4. Employee Engine — order 30   ← develops the workforce
+5. Corporation Engine — order 40
+      ├─ accrues revenue and operating costs from the workforce productivity
+      ├─ processes the payroll of the current period (at most once)
+      └─ updates reputation, tier and status
+```
+
+The Stage 02 **world → economy** order is preserved. The workforce developed in the same tick feeds the corporation in that tick — verified by an integration test that recomputes the expected revenue independently.
+
+## 12. Economy Integration Boundary
+
+The Corporation Engine can produce a `CorporateMarketSignal` (demand pressure, supply pressure, productivity). The Economy Engine does **not** consume it yet: the market model has no notion of goods that could be offered — products and production arrive in Stage 04. Wiring it now would be an artificial economic effect, so the typed contract is defined and the connection is documented as deferred.
+
+## 13. Event Communication
+
+`src/core/events/eventBus.ts` — a typed event bus decoupling modules. Simulation events are mirrored there for app-level observers, while the engine exposes direct callbacks (`onTick`, `onStatusChange`) for internal wiring — the simulation itself never depends on the bus.
+
+## 14. Error Handling
+
+`src/core/error/errorHandler.ts` — centralized error handler. Installs global `window.onerror` and `unhandledrejection` handlers, logs via the logger, emits `app:error` events and exposes a `tryCatch` Result helper. `AppError` is defined once in `src/core/types/index.ts` and re-exported.
+
+Domain engines reject invalid input safely: an invalid state or context is logged and the incoming state is returned **unchanged**, so a corrupted state can never propagate through the simulation.
+
+## 15. Logging
 
 `src/core/logging/logger.ts` — centralized logger respecting `VITE_LOG_LEVEL`. Prefix `AETHRION`.
 
-## 10. Environment Configuration
+## 16. Environment Configuration
 
 `src/core/config/env.ts` — typed access to Vite env variables. No direct `import.meta.env` reads elsewhere.
 
-## 11. Web Workers
+## 17. Web Workers
 
-`src/workers/` is reserved for Stage 07. Worker integration is deliberately **not** implemented in Stage 02; `VITE_ENABLE_SIMULATION_WORKER` remains reserved.
+`src/workers/` is reserved for Stage 07. Worker integration is deliberately **not** implemented in Stage 03.
 
-## 12. Persistence
+## 18. Persistence
 
-`src/services/persistence/indexedDB.ts` — IndexedDB (via `idb`) with `saves` and `settings` object stores. Wired up in Stage 08.
+`src/services/persistence/indexedDB.ts` — IndexedDB (via `idb`). Wired up in Stage 08.
 
-## 13. TypeScript Configuration
+## 19. TypeScript Configuration
 
 Strict mode enabled (`strict: true`, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`, `isolatedModules`). Path alias `@/` → `./src`.
 
-## 14. Dependency Rules
+## 20. Dependency Rules
 
 - Avoid circular dependencies.
 - Game simulation independent from React.
 - Three.js independent from game rules.
 - Domain modules expose pure functions — the store and the UI never re-implement them.
 - UI depends on design tokens only (no hardcoded brand colors).
+- The UI never executes simulation rules — it calls the command layer.

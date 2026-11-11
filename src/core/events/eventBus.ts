@@ -18,6 +18,7 @@ interface EventMap {
     simTimeMs: number;
     deltaMs: number;
     realDeltaMs: number;
+    elapsedSimMs: number;
   };
   'simulation:status': {
     status: SimulationStatus;

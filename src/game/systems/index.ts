@@ -31,6 +31,34 @@ export { useGameStore } from '@/game/state/gameStore';
 export type { EmpireState, GameStoreState, SimulationMeta } from '@/game/state/gameStore';
 
 export {
+  selectActiveRegionId,
+  selectCommodities,
+  selectCorporationState,
+  selectCurrencies,
+  selectEmployeeCount,
+  selectEmployeeState,
+  selectEmployees,
+  selectEmpire,
+  selectPlayerCorporation,
+  selectRegions,
+  selectSimulation,
+  selectSimulationDate,
+  selectSimulationError,
+  selectSimulationSpeed,
+  selectSimulationStatus,
+  selectSimulationTick,
+  selectWorld,
+} from '@/game/state/selectors';
+
+export {
+  commands,
+  createPlayerCorporation,
+  dismissEmployeeCommand,
+  hireEmployeeCommand,
+} from '@/game/commands';
+export type { CreateCorporationCommand, HireEmployeeCommand } from '@/game/commands';
+
+export {
   SimulationRunner,
   SIMULATION_SPEEDS,
   SIMULATION_SYSTEM_ORDER,

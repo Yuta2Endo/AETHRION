@@ -313,6 +313,7 @@ export class GameEngine {
         simTimeMs: this.clock.now(),
         deltaMs,
         realDeltaMs,
+        elapsedSimMs: this.clock.getElapsedSimMs(),
       };
 
       for (const system of this.getSystems()) {
@@ -330,6 +331,7 @@ export class GameEngine {
         simTimeMs: context.simTimeMs,
         deltaMs: context.deltaMs,
         realDeltaMs: context.realDeltaMs,
+        elapsedSimMs: context.elapsedSimMs,
       });
     } finally {
       this.ticking = false;

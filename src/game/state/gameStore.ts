@@ -10,7 +10,7 @@
  *   functions; the store only stores the results.
  * - Does NOT persist to localStorage. Persistent storage is an IndexedDB
  *   concern reserved for Stage 08. The state kept here is plain and
- *   serialisable so it can be snapshotted later without reshaping it.
+ *   serialisable so it can be snapshotted later.
  * - Is strictly separate from the application store
  *   (`src/app/providers/AppProvider`), which owns UI-only state.
  */
@@ -18,10 +18,15 @@
 import { create } from 'zustand';
 import type { SimulationStatus } from '@/core/types';
 import type { GameDate } from '@/game/clock/gameClock';
+import {
+  createInitialCorporationState,
+  type CorporationState,
+} from '@/simulation/corporation';
 import { createInitialEconomy, type EconomyState } from '@/simulation/economy';
+import { createInitialEmployeeState, type EmployeeState } from '@/simulation/employees';
 import { createInitialWorld, type WorldState } from '@/simulation/world';
 
-/** The player's empire — global identity, not a corporation (Stage 03). */
+/** The player's empire — the global identity the corporation operates under. */
 export interface EmpireState {
   name: string;
   charter: string;
@@ -38,6 +43,8 @@ export interface SimulationMeta {
   tick: number;
   /** Current simulated epoch milliseconds. */
   simTimeMs: number;
+  /** Simulated milliseconds elapsed since the simulation started. */
+  elapsedSimMs: number;
   /** Current in-game date. */
   date: GameDate;
   /** Current speed multiplier. */
@@ -50,11 +57,17 @@ export interface GameStoreState {
   empire: EmpireState;
   world: WorldState;
   economy: EconomyState;
+  /** The player corporation and its financial ledger. */
+  corporation: CorporationState;
+  /** The employee records. */
+  employees: EmployeeState;
   simulation: SimulationMeta;
 
   /** Controlled updates — the store stores results, it never computes them. */
   applyWorldState: (next: WorldState) => void;
   applyEconomyState: (next: EconomyState) => void;
+  applyCorporationState: (next: CorporationState) => void;
+  applyEmployeeState: (next: EmployeeState) => void;
   applySimulationMeta: (next: Partial<SimulationMeta>) => void;
   applyEmpire: (next: Partial<EmpireState>) => void;
   /** Restores the initial simulation state. */
@@ -72,6 +85,7 @@ const INITIAL_SIMULATION: SimulationMeta = {
   status: 'idle',
   tick: 0,
   simTimeMs: 0,
+  elapsedSimMs: 0,
   date: { year: 2287, month: 1, day: 1, hour: 8, minute: 0, second: 0 },
   speed: 1,
   lastError: null,
@@ -81,10 +95,14 @@ export const useGameStore = create<GameStoreState>()((set) => ({
   empire: { ...INITIAL_EMPIRE },
   world: createInitialWorld(),
   economy: createInitialEconomy(),
+  corporation: createInitialCorporationState(),
+  employees: createInitialEmployeeState(),
   simulation: { ...INITIAL_SIMULATION },
 
   applyWorldState: (next) => set({ world: next }),
   applyEconomyState: (next) => set({ economy: next }),
+  applyCorporationState: (next) => set({ corporation: next }),
+  applyEmployeeState: (next) => set({ employees: next }),
   applySimulationMeta: (next) =>
     set((state) => ({ simulation: { ...state.simulation, ...next } })),
   applyEmpire: (next) => set((state) => ({ empire: { ...state.empire, ...next } })),
@@ -93,8 +111,10 @@ export const useGameStore = create<GameStoreState>()((set) => ({
       empire: { ...INITIAL_EMPIRE },
       world: createInitialWorld(),
       economy: createInitialEconomy(),
+      corporation: createInitialCorporationState(),
+      employees: createInitialEmployeeState(),
       simulation: { ...INITIAL_SIMULATION },
     }),
 }));
 
-export type { WorldState, EconomyState, GameDate, SimulationStatus };
+export type { WorldState, EconomyState, CorporationState, EmployeeState, GameDate, SimulationStatus };

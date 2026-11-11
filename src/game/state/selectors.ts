@@ -11,6 +11,7 @@
  */
 
 import type { GameStoreState } from '@/game/state/gameStore';
+import { getPlayerCorporation } from '@/simulation/corporation';
 
 export const selectEmpire = (state: GameStoreState) => state.empire;
 export const selectEmpireName = (state: GameStoreState) => state.empire.name;
@@ -35,3 +36,14 @@ export const selectSimulationSpeed = (state: GameStoreState) => state.simulation
 export const selectSimulationDate = (state: GameStoreState) => state.simulation.date;
 export const selectSimulationTime = (state: GameStoreState) => state.simulation.simTimeMs;
 export const selectSimulationError = (state: GameStoreState) => state.simulation.lastError;
+
+export const selectCorporationState = (state: GameStoreState) => state.corporation;
+/** The player corporation, or null before it has been established. */
+export const selectPlayerCorporation = (state: GameStoreState) =>
+  getPlayerCorporation(state.corporation);
+export const selectCorporationTick = (state: GameStoreState) => state.corporation.tick;
+
+export const selectEmployeeState = (state: GameStoreState) => state.employees;
+/** All employee records — a stable array reference between updates. */
+export const selectEmployees = (state: GameStoreState) => state.employees.employees;
+export const selectEmployeeCount = (state: GameStoreState) => state.employees.employees.length;

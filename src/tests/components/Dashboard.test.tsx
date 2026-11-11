@@ -20,12 +20,13 @@ describe('Dashboard', () => {
     expect(screen.getByText('2287-01-01 08:00')).toBeInTheDocument();
   });
 
-  it('renders the empire overview from the game state', () => {
+  it('renders the corporation section from the game state', () => {
     render(<Dashboard />);
-    const empire = within(screen.getByLabelText('Empire overview'));
 
-    expect(empire.getByText('AETHRION')).toBeInTheDocument();
-    expect(empire.getByText('Technology Conglomerate')).toBeInTheDocument();
+    // No corporation has been established yet — the dashboard shows the
+    // establishment form instead of any placeholder statistics.
+    expect(screen.getByLabelText('Establish corporation')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Corporation overview')).not.toBeInTheDocument();
   });
 
   it('renders every world region with its stable identifier', () => {

@@ -32,8 +32,17 @@ describe('Simulation integration', () => {
   it('registers the world and economy systems in the documented order', () => {
     const systems = runner.getEngine().getSystems();
 
-    expect(systems.map((system) => system.name)).toEqual(['world', 'economy']);
+    // Stage 03 added the employee and corporation systems; the original
+    // world -> economy order is preserved.
+    expect(systems.map((system) => system.name)).toEqual([
+      'world',
+      'economy',
+      'employees',
+      'corporation',
+    ]);
     expect(SIMULATION_SYSTEM_ORDER.world).toBeLessThan(SIMULATION_SYSTEM_ORDER.economy);
+    expect(SIMULATION_SYSTEM_ORDER.economy).toBeLessThan(SIMULATION_SYSTEM_ORDER.employees);
+    expect(SIMULATION_SYSTEM_ORDER.employees).toBeLessThan(SIMULATION_SYSTEM_ORDER.corporation);
     expect(systems[0].order).toBeLessThan(systems[1].order);
   });
 
