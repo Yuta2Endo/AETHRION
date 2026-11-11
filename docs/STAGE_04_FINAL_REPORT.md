@@ -466,7 +466,7 @@ full employee training system.
 
 | Commit | Content |
 |--------|---------|
-| `b8f2c71` | `feat(stage-04): Technology & Production Engines` — implementation, tests and documentation updates |
+| `76682b9` | `feat(stage-04): Technology & Production Engines` — implementation, tests and documentation updates |
 | *(this commit)* | `docs(stage-04): add final report` — `docs/STAGE_04_FINAL_REPORT.md` |
 
 - Branch: `main`, based on the Stage 03 commit `62fa270`.
