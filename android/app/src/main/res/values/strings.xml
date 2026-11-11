@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AETHRION</string>
+    <string name="title_activity_main">AETHRION</string>
+    <string name="package_name">com.aethrion.app</string>
+    <string name="custom_url_scheme">com.aethrion.app</string>
+</resources>

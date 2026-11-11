@@ -30,7 +30,7 @@ dist-ssr
 *.pem
 
 # Capacitor native projects (root level only — src/platform/android must stay tracked)
-/android/
+
 /ios/
 
 # OS
