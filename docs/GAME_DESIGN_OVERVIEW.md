@@ -1,10 +1,10 @@
 # AETHRION — Game Design Overview
 
 **Project:** AETHRION  
-**Stage:** 04 — Technology & Production Engines  
-**Status:** World, Economy, Corporation, Employee, Technology, Product, Resource, Production and Market systems implemented; the remaining gameplay systems stay in later stages.
+**Stage:** 05 — City Engine  
+**Status:** World, Economy, Corporation, Employee, Technology, Product, Resource, Production, Market and City systems implemented; the remaining gameplay systems stay in later stages.
 
-> The exact rules of the Stage 04 engines are documented in `docs/ENGINE_RULES.md`.
+> The exact rules of the Stage 04 and Stage 05 engines are documented in `docs/ENGINE_RULES.md`.
 
 ## 1. Genre & Vision
 
@@ -20,8 +20,8 @@ The player starts with a small technology corporation and builds a global empire
 - Build factories and research centers *(Stage 04 — manufacturing facilities implemented)*
 - Manufacture products *(Stage 04 — implemented)*
 - Manage supply chains *(Stage 04 — baseline: resources, reservations, production)*
-- Develop cities *(Stage 05)*
-- Influence global markets *(Stage 02 baseline, Stage 04 product sales)*
+- Develop cities *(Stage 05 — implemented)*
+- Influence global markets *(Stage 02 baseline, Stage 04 product sales, Stage 05 urban demand)*
 - Compete against AI corporations *(Stage 06)*
 - Expand across world regions *(Stage 02 baseline)*
 - Shape the future of civilization
@@ -43,10 +43,7 @@ The player starts with a small technology corporation and builds a global empire
 | Resource Engine | Resource inventory, pricing, reservations | **Implemented (Stage 04)** |
 | Production Engine | Facilities, production orders, manufacturing | **Implemented (Stage 04)** |
 | Market Engine | Listings, demand, sales, corporate market signal | **Implemented (Stage 04)** |
-| City Engine | Cities, buildings, urban development | Typed interface only |
-| Technology Engine | Technology tree, research, unlocks | Typed interface only |
-| Production Engine | Factories, products, manufacturing, supply chains | Typed interface only |
-| City Engine | Cities, buildings, urban development | Typed interface only |
+| City Engine | City, districts, land, buildings, infrastructure, population | **Implemented (Stage 05)** |
 | Events Engine | World events, news, scenario triggers | Typed interface only |
 | Competitor AI Engine | AI corporations, competitive behavior | Typed interface only |
 | Save & Archive Engine | Persistence (IndexedDB) | Stage 08 |
@@ -207,3 +204,50 @@ Research → Technology Unlock → Product Development → Resource Acquisition
 - Quality and prices are computed from documented formulas — there is no hidden randomness.
 - The world still influences the market: a more developed world raises the commercial activity,
   which raises the demand for the corporation's products.
+
+## 11. The Urban Gameplay Loop (Stage 05)
+
+Stage 05 turns the corporation into a presence in a living city. Every step is driven by the
+simulated clock and by real city conditions — nothing is granted.
+
+```
+Land Acquisition → Construction → Infrastructure → Housing → Population
+                → Industry → Commercial Activity → Urban Growth → Corporate Expansion
+```
+
+| Step | What the player does | What the simulation does |
+|------|----------------------|--------------------------|
+| **Land Acquisition** | Buys a plot of the thirty available | The price is charged to the corporate ledger; the plot becomes owned and can never be resold to anybody else after a disposal |
+| **Construction** | Picks a building and a compatible plot, pays the construction cost | The construction progresses with the simulated time and completes exactly once; the plot becomes occupied |
+| **Infrastructure** | Builds power stations, water plants, logistics centers and commercial centers | The capacity and the demand of the four networks are aggregated city wide; a shortage reduces the output of the buildings and, below the minimum service level, shuts them down |
+| **Housing** | Builds residential complexes and high-density housing | The housing capacity rises, the population converges towards it and is capped by it |
+| **Population** | — | The residents fill the positions the city offers; the unemployment is derived and never negative |
+| **Industry** | Builds factories, plants and assembly facilities | The city industrial capacity rises and the environment degrades with the pollution of the industry |
+| **Urban Growth** | — | Prosperity, infrastructure, environment, public services and the development level converge towards targets derived from the actual city conditions |
+| **Corporate Expansion** | — | The city raises the commodity demand of the economy and the operating cost of the city reduces the corporate net profit |
+
+### The five districts
+
+| District | Type | Role |
+|----------|------|------|
+| Downtown | commercial | Corporate offices and commercial activity |
+| Industrial Zone | industrial | Manufacturing and the logistics network |
+| Research Park | research | Research facilities and technology development |
+| Residential District | residential | Housing and the workforce of the city |
+| Energy District | energy | Power generation and the water network |
+
+### Design guarantees
+
+- The city is **deterministic** — the same inputs always produce the same city. There is no
+  randomness anywhere in the urban simulation.
+- The city has **no treasury**: every payment goes through the corporate ledger, and a failed
+  operation changes neither the city nor the corporation.
+- The **Employee Engine stays the only authority** for the corporate employees. The city stores
+  references only, and the city population, the available workforce and the occupied positions are
+  three separate figures that are never counted twice.
+- The city is a **consumer**, never a producer: it raises the commodity demand by at most 15 %
+  and never adds supply to the market.
+- Expansion is **never free**: the construction is a capital expenditure, the operating cost of the
+  running buildings reduces the corporate net profit, and the infrastructure must keep up.
+- The Stage 04 Production Engine remains the only authority for manufacturing — the city never
+  creates a production order.

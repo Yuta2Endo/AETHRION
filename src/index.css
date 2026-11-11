@@ -1490,6 +1490,14 @@ select {
   color: var(--color-imperial-purple);
 }
 
+.transaction-type--city {
+  color: var(--color-neon-cyan);
+}
+
+.transaction-type--city-sale {
+  color: var(--success);
+}
+
 .transaction-description {
   font-size: var(--text-sm);
   color: var(--text-primary);
@@ -1809,5 +1817,28 @@ select {
 
   .resource-name {
     grid-column: 1 / -1;
+  }
+}
+
+/* ------------------------------------------------- City engine (Stage 05) */
+.city-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.tech-prereq--locked {
+  color: var(--warning);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 480px) {
+  .city-row-actions {
+    gap: var(--space-1);
+  }
+
+  .city-row-actions .link-button {
+    padding: 2px 2px;
   }
 }

@@ -18,9 +18,10 @@
 
 import { logger } from '@/core/logging/logger';
 import { clamp, isFiniteNumber, roundTo } from '@/core/utils';
-import type { CorporateMarketSignal } from '@/simulation/contracts';
+import type { CityMarketSignal, CorporateMarketSignal } from '@/simulation/contracts';
 import {
   isValidEconomyState,
+  type CommodityCategory,
   type EconomyState,
   type MarketCommodity,
 } from './economyState';
@@ -39,6 +40,12 @@ export interface EconomyContext {
    * Optional: when it is absent the market behaves exactly as in Stage 02.
    */
   corporateSignal?: CorporateMarketSignal;
+  /**
+   * The city market signal (Stage 05).
+   *
+   * Optional: when it is absent the market behaves exactly as in Stage 04.
+   */
+  citySignal?: CityMarketSignal;
 }
 
 export const ECONOMY_RULES = {
@@ -56,13 +63,108 @@ export const ECONOMY_RULES = {
   corporateSupplyWeight: 0.15,
   /** How strongly the corporate demand signal amplifies the commodity demand. */
   corporateDemandWeight: 0.15,
+  /** How strongly the city amplifies the commodity demand. */
+  cityDemandWeight: 0.15,
+  /** How strongly the urban energy demand amplifies the energy demand. */
+  cityEnergyWeight: 0.1,
+  /** Energy demand (MWh/h) that corresponds to the maximum energy bonus. */
+  cityEnergyReference: 2_000,
+  /**
+   * How strongly the city raises the saturation ceiling of the commodity
+   * demand. A growing city consumes more, so the market can sustain a higher
+   * level of demand.
+   */
+  citySaturationWeight: 0.25,
 } as const;
+
+/**
+ * How strongly the urban activity raises the demand of a commodity category.
+ *
+ * The city is a consumer, not a producer — it never adds supply to the
+ * market.
+ */
+export const CITY_COMMODITY_WEIGHTS: Record<CommodityCategory, number> = {
+  compute: 1,
+  energy: 0.6,
+  materials: 0.9,
+  logistics: 1,
+};
+
+/**
+ * Builds the urban activity index of the city signal, 0..100.
+ *
+ * The index blends the commercial activity, the research capacity, the
+ * industrial capacity and the population of the city.
+ */
+export function getCityUrbanIndex(signal: CityMarketSignal): number {
+  return clamp(
+    signal.commercialActivity * 0.4 +
+      signal.researchCapacity * 0.3 +
+      Math.min(1, signal.industrialCapacity / 500) * 100 * 0.2 +
+      Math.min(1, signal.population / 5_000) * 100 * 0.1,
+    0,
+    100,
+  );
+}
+
+/**
+ * The factor the city adds to the demand of a commodity category.
+ *
+ * The factor is bounded by 1.15 — the city can raise the demand by at most
+ * fifteen percent. Without a city signal the factor is exactly 1 and the
+ * market behaves exactly as in Stage 04.
+ */
+export function getCityDemandFactor(
+  signal: CityMarketSignal | undefined,
+  category: CommodityCategory,
+): number {
+  if (!signal) return 1;
+
+  const urbanIndex = getCityUrbanIndex(signal);
+  const activityFactor = 1 + (urbanIndex / 100) * CITY_COMMODITY_WEIGHTS[category] * ECONOMY_RULES.cityDemandWeight;
+
+  const energyFactor =
+    category === 'energy'
+      ? 1 +
+        Math.min(
+          ECONOMY_RULES.cityEnergyWeight,
+          (Math.max(0, signal.energyDemand) / ECONOMY_RULES.cityEnergyReference) *
+            ECONOMY_RULES.cityEnergyWeight,
+        )
+      : 1;
+
+  return roundTo(Math.min(1 + ECONOMY_RULES.cityDemandWeight, activityFactor * energyFactor), 6);
+}
+
+/**
+ * The factor the city adds to the saturation ceiling of a commodity category.
+ *
+ * Without a city signal the factor is exactly 1 and the market behaves
+ * exactly as in Stage 04.
+ */
+export function getCitySaturationFactor(
+  signal: CityMarketSignal | undefined,
+  category: CommodityCategory,
+): number {
+  if (!signal) return 1;
+
+  const urbanIndex = getCityUrbanIndex(signal);
+  return roundTo(
+    1 +
+      (urbanIndex / 100) *
+        CITY_COMMODITY_WEIGHTS[category] *
+        ECONOMY_RULES.citySaturationWeight,
+    6,
+  );
+}
 
 function updateCommodity(
   commodity: MarketCommodity,
   hours: number,
   demandFactor: number,
   supplyFactor: number,
+  cityFactor = 1,
+  citySaturation = 1,
 ): MarketCommodity {
   const supplyRatio = commodity.supply / commodity.baseSupply;
   const demandRatio = commodity.demand / commodity.baseDemand;
@@ -72,12 +174,12 @@ function updateCommodity(
     commodity.supply + commodity.supplyGrowth * hours * supplyRatio * supplyFactor,
   );
 
+  const effectiveDemandFactor = demandFactor * cityFactor;
   const rawDemand =
-    commodity.demand + commodity.demandGrowth * hours * demandRatio * demandFactor;
-  const demand = Math.min(
-    Math.max(0, rawDemand),
-    commodity.baseDemand * ECONOMY_RULES.demandSaturation,
-  );
+    commodity.demand + commodity.demandGrowth * hours * demandRatio * effectiveDemandFactor;
+  const demandCap =
+    commodity.baseDemand * ECONOMY_RULES.demandSaturation * citySaturation;
+  const demand = Math.min(Math.max(0, rawDemand), demandCap);
 
   const total = demand + supply;
   const imbalance = total > 0 ? (demand - supply) / total : 0;
@@ -139,12 +241,19 @@ export function updateEconomy(state: EconomyState, context: EconomyContext): Eco
     1 +
     (signal ? (clamp(signal.demandPressure, 0, 100) / 100) * ECONOMY_RULES.corporateDemandWeight : 0);
 
+  // The city signal (Stage 05) raises the demand of the commodities the city
+  // consumes. Without the signal every factor is exactly 1 and the market
+  // behaves exactly as in Stage 04.
+  const citySignal = context.citySignal;
+
   const commodities = state.commodities.map((commodity) =>
     updateCommodity(
       commodity,
       hours,
       activityFactor * corporateDemandFactor,
       supplyFactor,
+      getCityDemandFactor(citySignal, commodity.category),
+      getCitySaturationFactor(citySignal, commodity.category),
     ),
   );
 

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { CalendarBlank, ChartLine, Coins, Cube, Factory, Flask, Package, Receipt, Storefront, Wallet } from '@phosphor-icons/react';
+import { CalendarBlank, ChartLine, Coins, Cube, Factory, Flask, HandCoins, MapPin, Package, Receipt, Storefront, Wallet } from '@phosphor-icons/react';
 import { StatCard, TransactionRow } from '@/ui/components';
 import { useGameStore } from '@/game/state/gameStore';
 import { selectPlayerCorporation } from '@/game/state/selectors';
@@ -75,6 +75,18 @@ export function FinanceOverview() {
           label="Manufacturing Expenses"
           value={`${BASE_CURRENCY_SYMBOL}${finances.lifetimeProductionExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
           icon={Factory}
+        />
+        <StatCard
+          label="City Investments"
+          value={`${BASE_CURRENCY_SYMBOL}${finances.lifetimeCityExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          hint="Land and construction"
+          icon={MapPin}
+        />
+        <StatCard
+          label="Land Disposal"
+          value={`${BASE_CURRENCY_SYMBOL}${finances.lifetimeCityRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          hint="Resale of city plots"
+          icon={HandCoins}
         />
         <StatCard
           label="Sales Revenue"

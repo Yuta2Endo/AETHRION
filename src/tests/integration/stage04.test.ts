@@ -173,6 +173,7 @@ describe('Stage 04 — the complete economic chain', () => {
 
     expect(names).toEqual([
       'world',
+      'city',
       'economy',
       'employees',
       'technology',

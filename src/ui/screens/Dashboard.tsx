@@ -27,6 +27,9 @@ import { formatGameDate } from '@/game/clock/gameClock';
 import { getEconomyMetrics, getImbalance } from '@/simulation/economy';
 import { getWorldMetrics, type RegionTier } from '@/simulation/world';
 import { CorporationOverview } from '@/ui/screens/sections/CorporationOverview';
+import { CityConstructionSection } from '@/ui/screens/sections/CityConstructionSection';
+import { CityLandSection } from '@/ui/screens/sections/CityLandSection';
+import { CityOverviewSection } from '@/ui/screens/sections/CityOverviewSection';
 import { EmployeeManagement } from '@/ui/screens/sections/EmployeeManagement';
 import { FinanceOverview } from '@/ui/screens/sections/FinanceOverview';
 import { HiringPanel } from '@/ui/screens/sections/HiringPanel';
@@ -172,6 +175,13 @@ export function Dashboard() {
       {/* ------------------------------------------------------ finance overview */}
       <FinanceOverview />
 
+      {/* ---------------------------------------------------------- city engine */}
+      <CityOverviewSection />
+
+      <CityLandSection />
+
+      <CityConstructionSection />
+
       {/* ------------------------------------------------------ world overview */}
       <section className="section-block" aria-label="World overview">
         <h2 className="section-title">
@@ -312,7 +322,7 @@ export function Dashboard() {
       <footer className="dashboard-footer">
         <div className="badge brand-badge">Premium Neon Sci-Fi</div>
         <div className="version-text">
-          AETHRION v0.2.0 — Stage 02 Game Core &amp; Simulation Foundation
+          AETHRION v0.5.0 — Stage 05 City Engine &amp; Urban Infrastructure
         </div>
       </footer>
     </div>

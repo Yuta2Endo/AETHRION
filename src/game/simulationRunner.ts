@@ -2,17 +2,18 @@
  * Simulation runner — binds the Game Core, the Game Clock, the game state
  * and the domain engines into one running simulation.
  *
- * Tick execution order (deterministic, Stage 04):
+ * Tick execution order (deterministic, Stage 05):
  *   1. Game Clock        — advances simulated time (engine-owned, before systems)
  *   2. World Engine      — order 10
- *   3. Economy Engine    — order 20  ← consumes the world produced in step 2
- *   4. Employee Engine   — order 30  ← develops the workforce
- *   5. Technology Engine — order 40  ← research uses the workforce of step 4
- *   6. Product Engine    — order 50  ← development uses the unlocked technologies
- *   7. Resource Engine   — order 60  ← resource bookkeeping
- *   8. Production Engine — order 70  ← consumes the reserved resources
- *   9. Market Engine     — order 80  ← sells the finished goods
- *  10. Corporation Engine— order 90  ← accrues the finances, payroll, progression
+ *   3. City Engine       — order 15  ← produces the city market signal
+ *   4. Economy Engine    — order 20  ← consumes the world and the two signals
+ *   5. Employee Engine   — order 30  ← develops the workforce
+ *   6. Technology Engine — order 40  ← research uses the workforce of step 5
+ *   7. Product Engine    — order 50  ← development uses the unlocked technologies
+ *   8. Resource Engine   — order 60  ← resource bookkeeping
+ *   9. Production Engine — order 70  ← consumes the reserved resources
+ *  10. Market Engine     — order 80  ← sells the finished goods
+ *  11. Corporation Engine— order 90  ← accrues the finances, payroll, progression
  *
  * The runner owns the wiring only. Every rule lives in `src/simulation/*`,
  * every lifecycle rule lives in `src/game/engine/*` and every state write
@@ -25,6 +26,7 @@ import { GameClock, type GameClockConfig } from '@/game/clock/gameClock';
 import { GameEngine } from '@/game/engine/gameEngine';
 import type { EngineScheduler } from '@/game/engine/scheduler';
 import { useGameStore } from '@/game/state/gameStore';
+import { advanceCity, buildCityMarketSignal, getCityOperatingCostPerHour } from '@/simulation/city';
 import {
   accrueFinances,
   getPlayerCorporation,
@@ -56,6 +58,7 @@ import { evolveWorld, getMarketActivityIndex } from '@/simulation/world';
  */
 export const SIMULATION_SYSTEM_ORDER = {
   world: 10,
+  city: 15,
   economy: 20,
   employees: 30,
   technology: 40,
@@ -118,6 +121,22 @@ export class SimulationRunner {
     });
 
     this.engine.registerSystem({
+      name: 'city',
+      order: SIMULATION_SYSTEM_ORDER.city,
+      update: (context) => {
+        const store = useGameStore.getState();
+        const next = advanceCity(store.city, {
+          tick: context.tick,
+          deltaMs: context.deltaMs,
+          simTimeMs: context.simTimeMs,
+        });
+        if (next !== store.city) {
+          store.applyCityState(next);
+        }
+      },
+    });
+
+    this.engine.registerSystem({
       name: 'economy',
       order: SIMULATION_SYSTEM_ORDER.economy,
       update: (context) => {
@@ -138,11 +157,19 @@ export class SimulationRunner {
           activeProducts: store.market.listings.filter((listing) => listing.active).length,
         });
 
+        // The city market signal is the documented integration boundary
+        // between the city and the market. It is only produced while the city
+        // runs something — otherwise the economy behaves exactly as in Stage 04.
+        const citySignal = store.city.city
+          ? buildCityMarketSignal(store.city.city) ?? undefined
+          : undefined;
+
         const next = updateEconomy(store.economy, {
           tick: context.tick,
           deltaMs: context.deltaMs,
           marketActivityIndex: getMarketActivityIndex(store.world),
           corporateSignal: signal,
+          citySignal,
         });
         store.applyEconomyState(next);
       },
@@ -336,6 +363,12 @@ export class SimulationRunner {
           periodId: period.id,
           workforceProductivity,
           employeeCount: employees.length,
+          // The operating cost of the city buildings (Stage 05). It is zero
+          // while the city runs nothing, so the Stage 03 semantics are
+          // preserved exactly.
+          cityOperatingCostPerHour: store.city.city
+            ? getCityOperatingCostPerHour(store.city.city)
+            : 0,
         };
 
         // 1. Accrue revenue and operating costs for the elapsed time.

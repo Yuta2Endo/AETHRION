@@ -44,6 +44,20 @@ export type {
   StartProductionCommand,
 } from './productionCommands';
 
+export {
+  assignBuildingCommand,
+  cancelConstructionCommand,
+  demolishBuildingCommand,
+  purchaseLandCommand,
+  renameCityCommand,
+  resumeBuildingCommand,
+  sellLandCommand,
+  startConstructionCommand,
+  suspendBuildingCommand,
+  unassignBuildingCommand,
+} from './cityCommands';
+export type { StartConstructionCommand } from './cityCommands';
+
 export { failure } from './shared';
 
 import { createPlayerCorporation, dismissEmployeeCommand, hireEmployeeCommand } from './corporationCommands';
@@ -61,6 +75,18 @@ import {
   createFacilityCommand,
   startProductionCommand,
 } from './productionCommands';
+import {
+  assignBuildingCommand,
+  cancelConstructionCommand,
+  demolishBuildingCommand,
+  purchaseLandCommand,
+  renameCityCommand,
+  resumeBuildingCommand,
+  sellLandCommand,
+  startConstructionCommand,
+  suspendBuildingCommand,
+  unassignBuildingCommand,
+} from './cityCommands';
 
 /**
  * All player commands, grouped for convenient access from the interface.
@@ -85,4 +111,15 @@ export const commands = {
   assignFacilityEmployees: assignFacilityEmployeesCommand,
   startProduction: startProductionCommand,
   cancelProduction: cancelProductionCommand,
+  // City
+  purchaseLand: purchaseLandCommand,
+  sellLand: sellLandCommand,
+  startConstruction: startConstructionCommand,
+  cancelConstruction: cancelConstructionCommand,
+  assignBuilding: assignBuildingCommand,
+  unassignBuilding: unassignBuildingCommand,
+  suspendBuilding: suspendBuildingCommand,
+  resumeBuilding: resumeBuildingCommand,
+  demolishBuilding: demolishBuildingCommand,
+  renameCity: renameCityCommand,
 };

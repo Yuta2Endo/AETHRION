@@ -1,23 +1,89 @@
 /**
- * City Engine module (Stage 01 placeholder).
- * Responsible for cities, buildings, and urban development.
- * Typed interface only — no implementation in Stage 01.
+ * City Engine — public surface.
+ * Stage 05 implementation.
  */
 
-export interface City {
-  id: string;
-  name: string;
-  population: number;
-}
+export {
+  BASELINE_EMPLOYMENT_CAPACITY,
+  BASELINE_HOUSING_CAPACITY,
+  BASELINE_INFRASTRUCTURE,
+  BUILDING_DEFINITIONS,
+  CITY_DISTRICT_DEFINITIONS,
+  DISTRICT_ZONING_MIX,
+  INFRASTRUCTURE_KEYS,
+  MAX_CITY_NAME_LENGTH,
+  MIN_CITY_NAME_LENGTH,
+  PLOT_BASE_PRICES,
+  PLOT_RESALE_RATE,
+  addCapacity,
+  createEmptyCapacity,
+  getBuildingDefinition,
+  getDistrictDefinition,
+  isDistrictCompatible,
+  isValidBuildingDefinition,
+  isValidCapacity,
+  isValidCity,
+  isValidCityBuilding,
+  isValidCityState,
+  isValidDistrict,
+  isValidLandPlot,
+  isZoningCompatible,
+} from './cityState';
+export type {
+  BuildingCategory,
+  BuildingDefinition,
+  BuildingEffects,
+  BuildingId,
+  BuildingStatus,
+  BuildingTypeId,
+  BuildingUnlockRequirements,
+  City,
+  CityBuilding,
+  CityId,
+  CityState,
+  CityStatistics,
+  District,
+  DistrictDefinition,
+  DistrictId,
+  DistrictType,
+  InfrastructureBalance,
+  InfrastructureCapacity,
+  InfrastructureDemand,
+  InfrastructureKey,
+  InfrastructureShortage,
+  LandPlot,
+  PlotId,
+  PlotStatus,
+  ZoningCategory,
+} from './cityState';
 
-export interface CityState {
-  cities: City[];
-}
-
-export const defaultCityState: CityState = {
-  cities: [],
-};
-
-export function getCityState(): CityState {
-  return { ...defaultCityState };
-}
+export {
+  CITY_RULES,
+  SIM_HOUR_MS,
+  advanceCity,
+  assignBuildingEmployees,
+  buildCityMarketSignal,
+  cancelConstruction,
+  computeCityStatistics,
+  computeInfrastructureBalance,
+  createInitialCityState,
+  demolishBuilding,
+  findBuilding,
+  findDistrict,
+  findPlot,
+  getCity,
+  getCityOperatingCostPerHour,
+  getCompatibleDefinitions,
+  getDistrictMetrics,
+  getInfrastructureShare,
+  getOperationalFactor,
+  isValidCityName,
+  purchasePlot,
+  renameCity,
+  resumeBuilding,
+  sellPlot,
+  startConstruction,
+  suspendBuilding,
+  unassignBuildingEmployees,
+} from './cityRules';
+export type { CityContext, DistrictMetrics } from './cityRules';

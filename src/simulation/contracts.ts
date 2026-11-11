@@ -74,6 +74,31 @@ export interface CorporateMarketSignal {
 }
 
 /**
+ * Typed integration boundary between the City Engine and the Economy Engine.
+ *
+ * The city produces this signal and the Economy Engine consumes it to
+ * modulate the commodity demand (Stage 05). Like the corporate signal it is a
+ * plain structure, so neither engine has to import the other.
+ *
+ * The signal is only produced while the city actually runs something — an
+ * untouched city leaves the economy exactly as it was.
+ */
+export interface CityMarketSignal {
+  /** Aggregate urban commercial activity, 0..100. */
+  commercialActivity: number;
+  /** Aggregate urban research capacity, 0..100. */
+  researchCapacity: number;
+  /** Aggregate urban industrial capacity, in units per batch. */
+  industrialCapacity: number;
+  /** Urban energy demand, in MWh per simulated hour. */
+  energyDemand: number;
+  /** Residents of the city. */
+  population: number;
+  /** Utilisation of the weakest infrastructure network, 0..100. */
+  infrastructureUtilization: number;
+}
+
+/**
  * Identifier of a tradeable resource.
  *
  * Resources are consumed by products and by manufacturing. The identifier

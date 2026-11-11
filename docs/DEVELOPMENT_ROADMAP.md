@@ -1,8 +1,8 @@
 # AETHRION — Development Roadmap
 
 **Project:** AETHRION  
-**Stage:** 04 — Technology & Production Engines (current)  
-**Status:** Stage 04 complete — Stage 05 awaiting user approval
+**Stage:** 05 — City Engine (current)  
+**Status:** Stage 05 complete — Stage 06 awaiting user approval
 
 ---
 
@@ -71,15 +71,25 @@
 
 ---
 
-## Stage 05: City Engine (next — pending user approval)
+## Completed — Stage 05: City Engine & Urban Infrastructure
 
-- Cities, buildings, urban development.
-- City ↔ Corporation ↔ Economy integration.
-- City development screens.
+- **City Engine**: one city with five districts (Downtown, Industrial Zone, Research Park, Residential District, Energy District), a finite land map of thirty plots, a data-driven catalogue of thirteen building definitions, a deterministic construction lifecycle, four urban infrastructure networks, an aggregate population and labour model and five bounded urban indicators.
+- **Land & construction**: plots are bought and sold through the corporate ledger, the zoning and the district type are two independent restrictions, an occupied plot can neither be sold nor reused, a construction completes exactly once, a cancellation is a documented sunk cost and a demolition releases the plot.
+- **Infrastructure**: the capacity (municipal baseline + providers) and the demand (consumers) are aggregated city wide. The weakest network defines the service level; below 25 % the buildings shut down, below 100 % their output is reduced. The operational status therefore responds to a shortage.
+- **Population & employment**: the population converges towards the housing capacity, is capped by it at all times, and the unemployment can never become negative. The Employee Engine stays the only authority for the corporate employees — the city only stores references.
+- **Corporation integration**: the city has no treasury of its own. The land and the construction are `city` transactions, the disposal is a `city-sale` transaction, and the operating cost of the running buildings is accrued into the operating expenses of the corporation, so expansion has a running price.
+- **Economy integration**: the new `CityMarketSignal` raises the commodity demand by at most 15 % and the saturation ceiling by at most 25 %. The city is a consumer and never adds supply. Without a city signal the economy behaves exactly as in Stage 04.
+- **Simulation integration**: the tick order grew to ten systems (world → **city** → economy → employees → technology → products → resources → production → market → corporation). The city runs before the economy so that the market signal is consumed in the same tick; the Stage 02 world → economy order is preserved.
+- **Command layer**: a new `cityCommands.ts` module with ten validated player commands, every one returning a typed result and leaving the state unchanged on failure.
+- **Interface**: City Overview, District Management, Urban Infrastructure, Land Management and Construction & Buildings sections on the dashboard; the finance overview extended with the city investments and the land disposal.
+- **Tests**: 360 passing (was 285) — including a complete city gameplay integration test and nine interface tests.
+- Documentation updated; `docs/ENGINE_RULES.md` extended and `docs/STAGE_05_FINAL_REPORT.md` created.
+
+**Still deferred to later stages (unchanged):** events and competitor AI (Stage 06), Web Workers (Stage 07), IndexedDB save/load (Stage 08), Three.js world rendering (Stage 09).
 
 ---
 
-## Stage 06: Events & Competitor AI Engines
+## Stage 06: Events & Competitor AI Engines (next — pending user approval)
 
 - World events, news feed, dynamic scenario triggers.
 - AI corporations and competitive behaviour.

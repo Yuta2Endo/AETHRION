@@ -65,7 +65,11 @@ describe('Dashboard', () => {
   it('starts the simulation from the interface', () => {
     render(<Dashboard />);
 
-    fireEvent.click(screen.getByRole('button', { name: /start/i }));
+    // The dashboard hosts several sections, so the simulation controls are
+    // addressed through their own panel.
+    const controls = within(screen.getByLabelText('Simulation controls'));
+
+    fireEvent.click(controls.getByRole('button', { name: /start/i }));
     expect(useGameStore.getState().simulation.status).toBe('running');
 
     act(() => {
@@ -76,11 +80,13 @@ describe('Dashboard', () => {
   it('pauses and resumes the simulation from the interface', () => {
     render(<Dashboard />);
 
-    fireEvent.click(screen.getByRole('button', { name: /start/i }));
-    fireEvent.click(screen.getByRole('button', { name: /pause/i }));
+    const controls = within(screen.getByLabelText('Simulation controls'));
+
+    fireEvent.click(controls.getByRole('button', { name: /start/i }));
+    fireEvent.click(controls.getByRole('button', { name: /pause/i }));
     expect(useGameStore.getState().simulation.status).toBe('paused');
 
-    fireEvent.click(screen.getByRole('button', { name: /resume/i }));
+    fireEvent.click(controls.getByRole('button', { name: /resume/i }));
     expect(useGameStore.getState().simulation.status).toBe('running');
 
     act(() => {

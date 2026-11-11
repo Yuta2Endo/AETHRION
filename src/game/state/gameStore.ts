@@ -18,6 +18,7 @@
 import { create } from 'zustand';
 import type { SimulationStatus } from '@/core/types';
 import type { GameDate } from '@/game/clock/gameClock';
+import { createInitialCityState, type CityState } from '@/simulation/city';
 import {
   createInitialCorporationState,
   type CorporationState,
@@ -76,6 +77,8 @@ export interface GameStoreState {
   production: ProductionState;
   /** Market listings of the finished products. */
   market: MarketState;
+  /** The city, its districts, its land and its buildings. */
+  city: CityState;
   simulation: SimulationMeta;
 
   /** Controlled updates — the store stores results, it never computes them. */
@@ -88,6 +91,7 @@ export interface GameStoreState {
   applyResourceState: (next: ResourceState) => void;
   applyProductionState: (next: ProductionState) => void;
   applyMarketState: (next: MarketState) => void;
+  applyCityState: (next: CityState) => void;
   applySimulationMeta: (next: Partial<SimulationMeta>) => void;
   applyEmpire: (next: Partial<EmpireState>) => void;
   /** Restores the initial simulation state. */
@@ -122,6 +126,7 @@ export const useGameStore = create<GameStoreState>()((set) => ({
   resources: createInitialResourceState(),
   production: createInitialProductionState(),
   market: createInitialMarketState(),
+  city: createInitialCityState(),
   simulation: { ...INITIAL_SIMULATION },
 
   applyWorldState: (next) => set({ world: next }),
@@ -133,6 +138,7 @@ export const useGameStore = create<GameStoreState>()((set) => ({
   applyResourceState: (next) => set({ resources: next }),
   applyProductionState: (next) => set({ production: next }),
   applyMarketState: (next) => set({ market: next }),
+  applyCityState: (next) => set({ city: next }),
   applySimulationMeta: (next) =>
     set((state) => ({ simulation: { ...state.simulation, ...next } })),
   applyEmpire: (next) => set((state) => ({ empire: { ...state.empire, ...next } })),
@@ -148,6 +154,7 @@ export const useGameStore = create<GameStoreState>()((set) => ({
       resources: createInitialResourceState(),
       production: createInitialProductionState(),
       market: createInitialMarketState(),
+      city: createInitialCityState(),
       simulation: { ...INITIAL_SIMULATION },
     }),
 }));
@@ -162,6 +169,7 @@ export type {
   ResourceState,
   ProductionState,
   MarketState,
+  CityState,
   GameDate,
   SimulationStatus,
 };

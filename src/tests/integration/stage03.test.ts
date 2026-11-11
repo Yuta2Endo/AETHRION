@@ -30,9 +30,11 @@ describe('Stage 03 — simulation integration', () => {
     const systems = runner.getEngine().getSystems();
 
     // Stage 04 inserted the technology, product, resource, production and
-    // market systems between the employees and the corporation.
+    // market systems between the employees and the corporation; Stage 05
+    // inserted the city system between the world and the economy.
     expect(systems.map((system) => system.name)).toEqual([
       'world',
+      'city',
       'economy',
       'employees',
       'technology',

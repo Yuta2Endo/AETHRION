@@ -57,7 +57,10 @@ export type TransactionType =
   | 'development'
   | 'resource'
   | 'production'
-  | 'sales';
+  | 'sales'
+  /** Stage 05 — city land acquisitions, construction and land disposal. */
+  | 'city'
+  | 'city-sale';
 
 export interface CorporationTransaction {
   id: string;
@@ -104,6 +107,10 @@ export interface CorporationFinances {
   lifetimeResourceExpenses: number;
   /** Manufacturing expenses (Stage 04). */
   lifetimeProductionExpenses: number;
+  /** City investments — land acquisitions and construction (Stage 05). */
+  lifetimeCityExpenses: number;
+  /** Proceeds from the disposal of city land (Stage 05). */
+  lifetimeCityRevenue: number;
   /** Revenue accrued since the last payroll period closed. */
   periodRevenue: number;
   periodOperatingExpenses: number;
@@ -277,6 +284,12 @@ export function isValidCorporation(corporation: Corporation): boolean {
     return false;
   }
   if (!isFiniteNumber(finances.lifetimeProductionExpenses) || finances.lifetimeProductionExpenses < 0) {
+    return false;
+  }
+  if (!isFiniteNumber(finances.lifetimeCityExpenses) || finances.lifetimeCityExpenses < 0) {
+    return false;
+  }
+  if (!isFiniteNumber(finances.lifetimeCityRevenue) || finances.lifetimeCityRevenue < 0) {
     return false;
   }
   if (!isFiniteNumber(finances.periodRevenue) || finances.periodRevenue < 0) return false;

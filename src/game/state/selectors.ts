@@ -65,3 +65,15 @@ export const selectProductionOrders = (state: GameStoreState) => state.productio
 
 export const selectMarketState = (state: GameStoreState) => state.market;
 export const selectMarketListings = (state: GameStoreState) => state.market.listings;
+
+export const selectCityState = (state: GameStoreState) => state.city;
+/** The city record, or null when no city exists. */
+export const selectCity = (state: GameStoreState) => state.city.city;
+/** The districts of the city — a stable reference, or undefined without a city. */
+export const selectCityDistricts = (state: GameStoreState) => state.city.city?.districts;
+/** The land plots of the city — a stable reference, or undefined without a city. */
+export const selectCityPlots = (state: GameStoreState) => state.city.city?.plots;
+/** The city buildings — a stable reference, or undefined without a city. */
+export const selectCityBuildings = (state: GameStoreState) => state.city.city?.buildings;
+/** The aggregated urban figures — a stable reference, or undefined without a city. */
+export const selectCityStatistics = (state: GameStoreState) => state.city.city?.statistics;

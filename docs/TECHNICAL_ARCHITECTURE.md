@@ -1,9 +1,9 @@
 # AETHRION — Technical Architecture
 
 **Project:** AETHRION  
-**Stage:** 04 — Technology & Production Engines
+**Stage:** 05 — City Engine
 
-> The exact rules of the Stage 04 engines are documented in `docs/ENGINE_RULES.md`.
+> The exact rules of the Stage 04 and Stage 05 engines are documented in `docs/ENGINE_RULES.md`.
 > This document describes the architecture and the layering.
 
 ## 1. Layered Architecture
@@ -51,7 +51,7 @@ Dependency direction is strictly downward. The simulation never imports React; t
 | **Resource Engine** | Resource inventory, pricing, reservations, ledger | Core, Economy Engine, Contracts |
 | **Production Engine** | Facilities, production orders, manufacturing | Core, Product Engine, Contracts |
 | **Market Engine** | Listings, demand, sales, corporate market signal | Core, Product Engine, Contracts |
-| City Engine | Cities, buildings | Core |
+| **City Engine** | City, districts, land, buildings, infrastructure, population | Core, Contracts |
 | Events Engine | World events, news | Core |
 | Competitor AI Engine | AI corporations | Core |
 | Save & Archive | IndexedDB persistence | idb |
@@ -61,7 +61,7 @@ Dependency direction is strictly downward. The simulation never imports React; t
 
 ## 3. Cross-Engine Contracts (`src/simulation/contracts.ts`)
 
-Plain, dependency-free types shared by two or more engines: the base currency, the corporate department model and the `CorporateMarketSignal` integration boundary. This module holds **no engine logic** — it only provides the vocabulary that lets the engines talk to each other without importing each other.
+Plain, dependency-free types shared by two or more engines: the base currency, the corporate department model and the two integration boundaries — the `CorporateMarketSignal` (Stage 04) and the `CityMarketSignal` (Stage 05). This module holds **no engine logic** — it only provides the vocabulary that lets the engines talk to each other without importing each other.
 
 ## 4. Game Core Engine (`src/game/engine/`)
 
@@ -127,11 +127,12 @@ Two distinct Zustand stores:
 | `resources` | Resource Engine | Resource balances, reservations, ledger |
 | `production` | Production Engine | Facilities and production orders |
 | `market` | Market Engine | Market listings and their sales results |
+| `city` | City Engine | The city, its districts, its land and its buildings |
 | `simulation` | Game Core | Status, tick, simulated time, date, speed |
 
 The game store contains **no domain logic** — it stores the results produced by the domain modules and exposes controlled update actions. It does **not** use the zustand `persist` middleware; persistent storage is an IndexedDB concern reserved for Stage 08.
 
-**Ownership rule:** the Corporation Engine never stores employee data. Headcount and workforce statistics are *derived* by `getCorporationStatistics(corporation, workforce)`, which accepts a minimal structural `WorkforceMember` view — so the Corporation Engine does not import the Employee Engine. The same principle applies to the Resource Engine (it never stores product or production data) and to the Product Engine (it never stores resource balances).
+**Ownership rule:** the Corporation Engine never stores employee data. Headcount and workforce statistics are *derived* by `getCorporationStatistics(corporation, workforce)`, which accepts a minimal structural `WorkforceMember` view — so the Corporation Engine does not import the Employee Engine. The same principle applies to the Resource Engine (it never stores product or production data) and to the Product Engine (it never stores resource balances). The **City Engine** never stores employee data either — a city building only holds *references* to the corporate employees that are assigned to it, exactly like the Production Engine does for its facilities. The city also has **no treasury of its own**: every payment uses the balance and the ledger of the player corporation.
 
 `src/game/state/selectors.ts` holds typed selectors returning primitives or stable slice references, keeping re-renders narrow.
 
@@ -148,10 +149,11 @@ Stage 04 split the single `commands.ts` file into a focused module per domain �
 | `productCommands.ts` | `startProductDevelopment`, `assignProductEmployees`, `setProductPrice`, `setProductSalesActive` |
 | `resourceCommands.ts` | `purchaseResource` |
 | `productionCommands.ts` | `createFacility`, `assignFacilityEmployees`, `startProduction`, `cancelProduction` |
+| `cityCommands.ts` | `purchaseLand`, `sellLand`, `startConstruction`, `cancelConstruction`, `assignBuilding`, `unassignBuilding`, `suspendBuilding`, `resumeBuilding`, `demolishBuilding`, `renameCity` |
 | `shared.ts` | `failure`, `requireCorporation`, `chargeCorporation`, `storeCorporation`, `validateEmployeeAssignment` |
 | `index.ts` | The aggregated `commands` object |
 
-Every command returns a `Result<T, AppError>` so the interface can display a precise validation message. **A failed command leaves the game state unchanged** — including the case where a production order cannot be charged: the resource reservation is rolled back.
+Every command returns a `Result<T, AppError>` so the interface can display a precise validation message. **A failed command leaves the game state unchanged** — including the case where a production order cannot be charged: the resource reservation is rolled back, and the case where a plot or a building cannot be paid for: the city state is not written at all.
 
 ## 8. Corporation Engine (`src/simulation/corporation/`)
 
@@ -254,25 +256,34 @@ Validated in order: profession → department → department availability at the
 
 ## 11. Simulation Integration
 
-`src/game/simulationRunner.ts` registers nine systems in a fixed order:
+`src/game/simulationRunner.ts` registers ten systems in a fixed order:
 
 ```
 1. Game Clock        — advances simulated time (engine-owned, before the systems)
 2. World Engine      — order 10
-3. Economy Engine    — order 20   ← consumes the world of step 2 and the corporate market signal
-4. Employee Engine   — order 30   ← develops the workforce
-5. Technology Engine — order 40   ← research uses the workforce of step 4
-6. Product Engine    — order 50   ← development uses the unlocked technologies
-7. Resource Engine   — order 60   ← resource bookkeeping
-8. Production Engine — order 70   ← consumes the reserved resources
-9. Market Engine     — order 80   ← sells the finished goods
-10. Corporation Engine— order 90
+3. City Engine       — order 15   ← produces the city market signal
+4. Economy Engine    — order 20   ← consumes the world of step 2 and the two market signals
+5. Employee Engine   — order 30   ← develops the workforce
+6. Technology Engine — order 40   ← research uses the workforce of step 5
+7. Product Engine    — order 50   ← development uses the unlocked technologies
+8. Resource Engine   — order 60   ← resource bookkeeping
+9. Production Engine — order 70   ← consumes the reserved resources
+10. Market Engine    — order 80   ← sells the finished goods
+11. Corporation Engine— order 90
       ├─ accrues revenue and operating costs from the workforce productivity
+      │  and from the operating cost of the running city buildings
       ├─ processes the payroll of the current period (at most once)
       └─ updates reputation, tier and status
 ```
 
-The Stage 02 **world → economy** order is preserved. The workforce developed in the same tick feeds the corporation in that tick — verified by an integration test that recomputes the expected revenue independently. The full chain **research → unlock → development → resource purchase → production → inventory → market sale → revenue** is covered by an end-to-end integration test.
+The Stage 02 **world → economy** order is preserved. The Stage 05 dependency is **city →
+economy**: the City Engine runs before the Economy Engine, so the economy consumes the city
+market signal of the **same** tick. The workforce developed in the same tick feeds the corporation
+in that tick — verified by an integration test that recomputes the expected revenue independently.
+The full chain **research → unlock → development → resource purchase → production → inventory →
+market sale → revenue** is covered by an end-to-end integration test, and the chain
+**land → construction → housing → population → industry → economy → finances** is covered by the
+Stage 05 integration test.
 
 The exact rules of every engine are documented in `docs/ENGINE_RULES.md`.
 
@@ -280,37 +291,71 @@ The exact rules of every engine are documented in `docs/ENGINE_RULES.md`.
 
 The Corporation Engine produces a `CorporateMarketSignal` (demand pressure, supply pressure, productivity) and the Economy Engine **now consumes it**: the signal modulates the commodity supply and demand by up to 15 %. Without a signal both factors are exactly 1 and the market behaves exactly as in Stage 02 — this is covered by a test.
 
-## 13. Event Communication
+The City Engine produces a second, independent boundary — the `CityMarketSignal`. A growing city consumes more commodities, so the signal raises the commodity demand by at most 15 % and raises the saturation ceiling of the demand by at most 25 %. The city never adds supply to the market. The signal is only produced while the city runs something, so an untouched city leaves the economy exactly as it was — this is covered by a test as well.
 
+## 13. City Engine (`src/simulation/city/`)
+
+| File | Responsibility |
+|------|----------------|
+| `cityState.ts` | The city record, the district and building tables, the land map, validation |
+| `cityRules.ts` | Land, construction, infrastructure, population, indicators, the market signal |
+| `index.ts` | The public surface of the module |
+
+### Data model
+
+The city owns **one** city with five districts, a finite land map of thirty plots and the
+building instances of the corporation. The districts, the zoning mix, the plot prices and the
+thirteen building definitions are **tables** — a new district or a new building never requires an
+engine code change.
+
+### Derived values
+
+The housing capacity, the employment capacity, the infrastructure balance, the building counts and
+the district metrics are **computed, never stored**. `city.statistics` is a snapshot that is
+recomputed from the authoritative state on every change — it is never a second source of truth.
+The city state stays plain and serialisable, and no `Date.now()` or `Math.random()` ever enters
+it: every identifier comes from a deterministic sequence.
+
+### Boundaries
+
+- The City Engine imports **no other domain engine**. The integration with the economy happens
+  through the `CityMarketSignal` contract; the integration with the corporation happens through
+  the existing ledger; the integration with the employees happens through **references** only.
+- The city has **no treasury**. Every payment uses the balance of the player corporation.
+- The Stage 04 Production Engine remains the only authority for manufacturing. A city building
+  contributes to the *city* industrial capacity, which is reported through the city signal — it
+  never creates a production order.
+
+## 14. Event Communication
 `src/core/events/eventBus.ts` — a typed event bus decoupling modules. Simulation events are mirrored there for app-level observers, while the engine exposes direct callbacks (`onTick`, `onStatusChange`) for internal wiring — the simulation itself never depends on the bus.
 
-## 14. Error Handling
+## 15. Error Handling
 
 `src/core/error/errorHandler.ts` — centralized error handler. Installs global `window.onerror` and `unhandledrejection` handlers, logs via the logger, emits `app:error` events and exposes a `tryCatch` Result helper. `AppError` is defined once in `src/core/types/index.ts` and re-exported.
 
 Domain engines reject invalid input safely: an invalid state or context is logged and the incoming state is returned **unchanged**, so a corrupted state can never propagate through the simulation.
 
-## 15. Logging
+## 16. Logging
 
 `src/core/logging/logger.ts` — centralized logger respecting `VITE_LOG_LEVEL`. Prefix `AETHRION`.
 
-## 16. Environment Configuration
+## 17. Environment Configuration
 
 `src/core/config/env.ts` — typed access to Vite env variables. No direct `import.meta.env` reads elsewhere.
 
-## 17. Web Workers
+## 18. Web Workers
 
 `src/workers/` is reserved for Stage 07. Worker integration is deliberately **not** implemented in Stage 03.
 
-## 18. Persistence
+## 19. Persistence
 
 `src/services/persistence/indexedDB.ts` — IndexedDB (via `idb`). Wired up in Stage 08.
 
-## 19. TypeScript Configuration
+## 20. TypeScript Configuration
 
 Strict mode enabled (`strict: true`, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`, `isolatedModules`). Path alias `@/` → `./src`.
 
-## 20. Dependency Rules
+## 21. Dependency Rules
 
 - Avoid circular dependencies.
 - Game simulation independent from React.

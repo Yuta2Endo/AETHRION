@@ -33,9 +33,11 @@ describe('Simulation integration', () => {
     const systems = runner.getEngine().getSystems();
 
     // Stage 04 added the technology, product, resource, production and market
-    // systems; the original world -> economy order is preserved.
+    // systems; Stage 05 inserted the city system between the world and the
+    // economy. The original world -> economy order is preserved.
     expect(systems.map((system) => system.name)).toEqual([
       'world',
+      'city',
       'economy',
       'employees',
       'technology',
@@ -45,7 +47,8 @@ describe('Simulation integration', () => {
       'market',
       'corporation',
     ]);
-    expect(SIMULATION_SYSTEM_ORDER.world).toBeLessThan(SIMULATION_SYSTEM_ORDER.economy);
+    expect(SIMULATION_SYSTEM_ORDER.world).toBeLessThan(SIMULATION_SYSTEM_ORDER.city);
+    expect(SIMULATION_SYSTEM_ORDER.city).toBeLessThan(SIMULATION_SYSTEM_ORDER.economy);
     expect(SIMULATION_SYSTEM_ORDER.economy).toBeLessThan(SIMULATION_SYSTEM_ORDER.employees);
     expect(SIMULATION_SYSTEM_ORDER.employees).toBeLessThan(SIMULATION_SYSTEM_ORDER.technology);
     expect(SIMULATION_SYSTEM_ORDER.technology).toBeLessThan(SIMULATION_SYSTEM_ORDER.products);

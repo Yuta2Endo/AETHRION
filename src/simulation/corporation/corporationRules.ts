@@ -62,6 +62,13 @@ export interface CorporationContext {
   workforceProductivity: number;
   /** Number of active employees. */
   employeeCount: number;
+  /**
+   * Operating cost of the city buildings per simulated hour (Stage 05).
+   *
+   * Optional: when it is absent the corporation behaves exactly as it did
+   * before the City Engine existed.
+   */
+  cityOperatingCostPerHour?: number;
 }
 
 /**
@@ -183,6 +190,8 @@ export function createInitialFinances(balance = INITIAL_CORPORATION_BALANCE): Co
     lifetimeDevelopmentExpenses: 0,
     lifetimeResourceExpenses: 0,
     lifetimeProductionExpenses: 0,
+    lifetimeCityExpenses: 0,
+    lifetimeCityRevenue: 0,
     periodRevenue: 0,
     periodOperatingExpenses: 0,
     periodPayrollExpenses: 0,
@@ -237,6 +246,16 @@ export function recordFinancialEvent(
       break;
     case 'production':
       finances.lifetimeProductionExpenses = roundTo(finances.lifetimeProductionExpenses + amount, 2);
+      break;
+    case 'city':
+      // City investments are capital expenditure — they are tracked separately
+      // and never reduce the operating net profit.
+      finances.lifetimeCityExpenses = roundTo(finances.lifetimeCityExpenses + amount, 2);
+      break;
+    case 'city-sale':
+      // The disposal of a city plot returns capital; it is tracked separately
+      // so that it never inflates the operating revenue of the corporation.
+      finances.lifetimeCityRevenue = roundTo(finances.lifetimeCityRevenue + amount, 2);
       break;
     case 'hiring':
       finances.lifetimeHiringCosts = roundTo(finances.lifetimeHiringCosts + amount, 2);
@@ -357,7 +376,10 @@ export function accrueFinances(
   const operatingExpenses = roundTo(
     (BASE_OPERATING_COST_PER_HOUR + Math.max(0, context.employeeCount) * OPERATING_COST_PER_EMPLOYEE_PER_HOUR) *
       hours *
-      tier.operatingCostFactor,
+      tier.operatingCostFactor +
+      // The operating cost of the city buildings (Stage 05). It is not scaled
+      // by the tier — the buildings cost what they cost.
+      Math.max(0, context.cityOperatingCostPerHour ?? 0) * hours,
     2,
   );
 

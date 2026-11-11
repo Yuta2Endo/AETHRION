@@ -1,8 +1,8 @@
 # AETHRION — Engine Rules
 
 **Project:** AETHRION  
-**Stage:** 04 — Technology & Production Engines  
-**Scope:** focused documentation of the Stage 04 gameplay engines.
+**Stage:** 05 — City Engine  
+**Scope:** focused documentation of the Stage 04 and Stage 05 gameplay engines.
 
 This document is the companion of `docs/TECHNICAL_ARCHITECTURE.md` (architecture and layering)
 and `docs/GAME_DESIGN_OVERVIEW.md` (player-facing gameplay). Here are the exact rules of the
@@ -294,6 +294,9 @@ demandFactor = 1 + (demandPressure / 100) × 0.15
 **Without a signal both factors are exactly 1** and the market behaves exactly as in Stage 02 —
 this is covered by a test.
 
+The Stage 05 **city market signal** is the second integration boundary of the economy. It is
+documented in section 7.9.
+
 ---
 
 ## 6. Financial Transaction Rules
@@ -310,6 +313,8 @@ The corporation has a single ledger. Every change of the cash balance goes throu
 | `hiring` | − hiring fee | `lifetimeHiringCosts` |
 | `payroll` | − payroll | `lifetimePayrollExpenses` |
 | `operating` | − operating cost | `lifetimeOperatingExpenses` |
+| `city` | − land acquisition / construction cost | `lifetimeCityExpenses` |
+| `city-sale` | + proceeds of a land disposal | `lifetimeCityRevenue` |
 
 `recordFinancialEvent(corporation, event)` applies the transaction **and** updates the matching
 counter in one atomic step. A rejected transaction (a non-finite amount or an overdraft) leaves
@@ -324,27 +329,349 @@ the corporation completely unchanged.
   movements.
 - `lifetimeRevenue` is the total of the workforce revenue and the sales revenue — the two streams
   are never counted twice.
+- **City investments are capital expenditure.** Like the Stage 04 facility construction, the land
+  acquisitions and the constructions of the city are tracked in `lifetimeCityExpenses` and are
+  **not** subtracted from the net profit. The **operating** cost of the running city buildings is
+  an operating expense and *is* part of the net profit — expansion is never free.
 
 ---
 
-## 7. Final Simulation Tick Order
+## 7. City Engine
+
+**Module:** `src/simulation/city/` · `cityState.ts` (model, tables) · `cityRules.ts` (rules)
+
+The city is the first functional urban environment. It is a **data driven** simulation domain:
+the districts, the land map and the building catalogue are tables — no engine code changes when
+a district or a building is added.
+
+### 7.1 The city record
+
+```ts
+interface City {
+  id: string;
+  name: string;
+  foundedAtSimMs: number;        // simulated time, never a wall-clock date
+  level: number;                 // 1..5, derived from the development
+  development: number;           // 0..100
+  population: number;
+  employment: number;
+  unemployment: number;          // 0..100 (percent of the population)
+  prosperity: number;            // 0..100
+  infrastructure: number;        // 0..100
+  environment: number;           // 0..100
+  publicServices: number;        // 0..100
+  districts: District[];
+  plots: LandPlot[];
+  buildings: CityBuilding[];
+  baselineInfrastructure: InfrastructureCapacity;
+  baselineHousingCapacity: number;
+  baselineEmploymentCapacity: number;
+  statistics: CityStatistics;
+  sequence: number;              // deterministic identifier sequence
+  tick: number;
+}
+```
+
+**Derived values are never stored.** The housing capacity, the employment capacity, the
+infrastructure balance, the building counts and the district metrics are computed by pure
+functions of the authoritative state (`computeCityStatistics`, `getDistrictMetrics`,
+`computeInfrastructureBalance`). `statistics` is a **snapshot** that is recomputed from that state
+on every change — it is never a second source of truth.
+
+The initial city is created deterministically by `createInitialCityState()`: the same call always
+produces the same city, the same districts and the same land map. No `Date.now()` and no
+`Math.random()` ever enters the simulation state — identifiers are derived from a sequence
+(`plot_001`, `bld_001`, `district_downtown`).
+
+### 7.2 The five districts
+
+| District | Id | Type | Plots | Base development | Price factor |
+|----------|----|------|-------|------------------|--------------|
+| Downtown | `district_downtown` | commercial | 6 | 55 | 1.35 |
+| Industrial Zone | `district_industrial` | industrial | 6 | 40 | 1.00 |
+| Research Park | `district_research` | research | 6 | 45 | 1.15 |
+| Residential District | `district_residential` | residential | 6 | 35 | 0.85 |
+| Energy District | `district_energy` | energy | 6 | 30 | 0.95 |
+
+The district type drives the building compatibility and the plot prices. There is exactly one
+simulation engine — the districts are rows of a table, never separate engines.
+
+The zoning mix of the districts is deliberately varied: the downtown district contains one
+industrially zoned plot and the industrial zone two energy zoned plots. The zoning and the
+district are therefore **two independent restrictions** — a building must satisfy both.
+
+### 7.3 The finite land map
+
+Thirty plots, six per district, `plot_001` … `plot_030`. There is no procedural land generation.
+
+| Field | Meaning |
+|-------|---------|
+| `id` | Deterministic identifier |
+| `districtId` | Owning district |
+| `zoning` | commercial · industrial · research · residential · energy · mixed-use |
+| `price` | Purchase price in Aether Credits |
+| `ownerId` | Owner, or `null` |
+| `buildingId` | Building standing on the plot, or `null` |
+| `infrastructureAvailable` | Connection to the municipal networks |
+| `status` | available · owned · occupied · sold |
+| `soldAtSimMs` | Simulated time of the disposal, or `null` |
+
+The **price** is `PLOT_BASE_PRICES[zoning] × district.priceFactor`, rounded to a whole number.
+The base prices are 6 000 (commercial), 5 500 (research), 5 000 (industrial), 4 800 (mixed-use),
+4 500 (energy) and 4 000 (residential).
+
+**Rules**
+
+- A plot can only be bought when its status is `available`. A sold plot is retired for ever.
+- An **occupied** plot can neither be sold nor reused — one plot never carries two buildings.
+- A plot that is sold returns 60 % of its purchase price (`PLOT_RESALE_RATE`); the refund goes
+  through the ledger as a `city-sale` transaction.
+- Every financial cost goes through the existing transaction system. A failed purchase changes
+  neither the city nor the corporation.
+
+### 7.4 The building catalogue
+
+Thirteen data driven blueprints (`BUILDING_DEFINITIONS`). Every blueprint declares its category,
+the compatible districts, the compatible zoning, the construction cost, the construction duration,
+the workforce capacity, the operating cost, the infrastructure demand and the effects.
+
+| Building | Category | Districts | Zoning | Cost | Duration | Jobs | Op. cost /h |
+|----------|----------|-----------|--------|------|----------|------|-------------|
+| Corporate Headquarters | corporate | commercial | commercial, mixed-use | 24 000 | 96 h | 120 | 180 |
+| Regional Office | corporate | commercial | commercial, mixed-use | 9 500 | 48 h | 40 | 60 |
+| Electronics Factory | industrial | industrial | industrial, mixed-use | 12 000 | 60 h | 70 | 95 |
+| Materials Processing Plant | industrial | industrial | industrial, mixed-use | 10 500 | 54 h | 60 | 80 |
+| Assembly Facility | industrial | industrial | industrial, mixed-use | 15 500 | 72 h | 85 | 110 |
+| Research Laboratory | research | research | research, mixed-use | 11 000 | 60 h | 45 | 95 |
+| Advanced Technology Center | research | research | research, mixed-use | 19 000 | 90 h | 80 | 160 |
+| Residential Complex | residential | residential | residential, mixed-use | 8 500 | 48 h | 12 | 35 |
+| High-Density Housing | residential | residential | residential, mixed-use | 14 000 | 66 h | 18 | 50 |
+| Power Station | infrastructure | energy, industrial | energy, industrial, mixed-use | 13 500 | 72 h | 35 | 120 |
+| Logistics Center | infrastructure | industrial, commercial | industrial, commercial, mixed-use | 9 000 | 48 h | 45 | 85 |
+| Commercial Center | infrastructure | commercial | commercial, mixed-use | 11 500 | 60 h | 55 | 95 |
+| Water Treatment Facility | infrastructure | energy, industrial, commercial | energy, industrial, commercial, mixed-use | 10 500 | 54 h | 28 | 70 |
+
+**Effects** (`BuildingEffects`) — every field is a plain number or a plain capacity record, so no
+building needs a special case in the engine:
+
+| Effect | Meaning |
+|--------|---------|
+| `populationCapacity` | Residents the building houses |
+| `productionCapacity` | Units per batch of city industrial capacity |
+| `researchCapacity` | Research capacity points |
+| `commercialActivity` | Commercial activity points |
+| `prosperity` | Prosperity points |
+| `environmentImpact` | Signed contribution to the environment target (negative is pollution) |
+| `infrastructureProvided` | Capacity the building contributes to the four networks |
+
+**Unlock requirements** reuse the existing Stage 04 technology tree and the corporation tiers:
+the Assembly Facility needs `robotic-assembly`, the Power Station needs `helion-fusion`, the
+Commercial Center needs `photonic-cores`, the Advanced Technology Center needs `neural-array` and
+the *established* tier, the Corporate Headquarters and the High-Density Housing need the *growth*
+tier.
+
+**Relationship to the Production Engine.** The city does **not** create a second production
+authority. The Stage 04 Production Engine remains the single model for manufacturing orders,
+resource reservations and the product inventory. A city building contributes to the **city**
+industrial capacity, which is reported through the city signal and never turns into a production
+order.
+
+### 7.5 The construction lifecycle
+
+```
+planned → constructing → completed ⇄ operational
+                 ↓            ↓         ↓
+              demolished   suspended  demolished
+```
+
+1. `startConstruction` validates in this order: the definition exists → the plot exists → the plot
+   is not sold → the plot is not occupied → the plot is owned by the corporation → the district is
+   compatible → the zoning is compatible → the cost and the duration are valid.
+2. The unlock requirements (technology, tier) are validated by the command layer.
+3. The construction cost is charged **once** through the corporate ledger (`city` transaction).
+4. The construction record is created with the deterministic id `bld_00n` and the plot becomes
+   `occupied`.
+5. The progress advances with the **simulated** time:
+   `progress += deltaMs / constructionDurationMs`, clamped to 0..1.
+6. At `progress >= 1` the building becomes `completed` and the completion is stamped. Because the
+   status changes, a building **can never complete twice**.
+7. The operational status is then evaluated against the infrastructure (see 7.6).
+
+**Cancellation** — `cancelConstruction` is only allowed for a `planned` or `constructing` building.
+The construction cost is **not** refunded — it is a sunk cost, exactly like the cancellation of a
+research project. The building record is kept with the status `demolished`, the plot is released
+and stays owned by the corporation.
+
+**Demolition** — `demolishBuilding` removes a finished building, releases the plot (it stays
+owned) and refunds nothing. The operating cost of the building stops.
+
+**Suspension** — `suspendBuilding` stops the effects of a running building; `resumeBuilding`
+evaluates the operational status immediately.
+
+### 7.6 The infrastructure model
+
+Four networks, all aggregated city wide:
+
+| Network | Provided by | Consumed by |
+|---------|-------------|-------------|
+| `electricity` | Power Station | every building |
+| `water` | Water Treatment Facility | every building |
+| `logistics` | Logistics Center | every building |
+| `publicServices` | Residential Complex, High-Density Housing, Commercial Center | every building |
+
+The city starts with a **municipal baseline** of `{ electricity: 60, water: 50, logistics: 40,
+publicServices: 30 }` — the infrastructure that exists before the player builds anything.
+
+```
+capacity = baseline + Σ provided by the finished buildings
+demand   =             Σ demanded by the finished buildings
+shortage = max(0, demand − capacity) per network
+```
+
+**Service level** — the weakest network decides:
+
+```
+share_c = min(1, capacity_c / demand_c)      (1 when the network has no demand)
+share   = min over the four networks
+factor  = clamp(share, 0.25, 1)
+```
+
+- A building is **operational** while `share >= 0.25`; otherwise it stays `completed` and
+  contributes nothing. The operational status therefore *responds* to an infrastructure shortage.
+- The effects of the operational buildings are scaled by `factor` — a strained city works at a
+  reduced output.
+- The capacity is never negative and a provider is counted exactly once — the capacity is
+  aggregated from the building records, not from an accumulator.
+
+There is no transport route, traffic, pipe or grid topology simulation in this stage.
+
+### 7.7 Population and employment
+
+```
+housingCapacity    = baselineHousingCapacity + Σ populationCapacity of the operational buildings
+employmentCapacity = baselineEmploymentCapacity + Σ workforceCapacity of the operational buildings
+population         → converges towards housingCapacity
+employment         = min(employmentCapacity, population)
+unemployment       = (population − employment) / population × 100     (0 when there is no population)
+availableWorkforce = population − employment
+```
+
+The population converges with the **exponential** form
+
+```
+population += (housingCapacity − population) × (1 − (1 − growthRate × attractiveness)^hours)
+```
+
+with `growthRate = 0.05` and `attractiveness = 0.5 + prosperity / 200`. When the housing is lost,
+the population decays at `0.1` per hour towards the remaining capacity. The exponential form
+guarantees that a single long tick can never overshoot the housing capacity.
+
+The population is **capped by the housing capacity at all times** and the unemployment can never
+become negative.
+
+**Four distinct populations** — they are never mixed up and never counted twice:
+
+| Figure | Owner |
+|--------|-------|
+| Corporate employees | Employee Engine (Stage 03) — the city only stores references |
+| City population | City Engine — the residents of the city |
+| Available workforce | City Engine — the residents that are not employed |
+| Occupied positions | City Engine — the positions filled by the residents |
+
+The city never creates, moves or duplicates a corporate employee. The Employee Engine stays the
+only authority for the employee records.
+
+### 7.8 The urban indicators
+
+Every indicator is normalised to 0..100 and converges towards a target that is derived from the
+actual city conditions. The convergence uses the exponential form
+`value += (target − value) × (1 − (1 − rate)^hours)` with `rate = 0.08` per simulated hour, so a
+long tick can never overshoot the target.
+
+| Indicator | Target |
+|-----------|--------|
+| `prosperity` | `10 + commercialActivity × 0.30 + employmentRate × 25 + environment × 0.15 + publicServices × 0.15 + infrastructure × 0.05` |
+| `infrastructure` | the lowest utilisation of the four networks |
+| `environment` | `80 + Σ environmentImpact of the operational buildings` |
+| `publicServices` | `(publicServiceCapacity / population) × 200` |
+| `development` | `10 + prosperity × 0.30 + infrastructure × 0.25 + environment × 0.15 + publicServices × 0.10 + populationBonus` |
+
+`populationBonus` is `10` at 2 000 residents. The city level is `1 + floor(development / 20)`,
+so it ranges from 1 to 5. A district converges towards
+`baseDevelopment + operationalBuildings × 7 + housingCapacity / 40 + employmentCapacity / 60`
+with a rate of 0.06 per hour.
+
+There is **no randomness** anywhere — the same inputs always produce the same city.
+
+### 7.9 The city market signal
+
+The City Engine produces the signal that the Economy Engine consumes
+(`CityMarketSignal` in `src/simulation/contracts.ts`):
+
+```
+commercialActivity        = Σ commercialActivity of the operational buildings × factor   (0..100)
+researchCapacity          = Σ researchCapacity of the operational buildings × factor     (0..100)
+industrialCapacity        = Σ productionCapacity of the operational buildings × factor
+energyDemand              = Σ electricity demand of the operational buildings (MWh/h)
+population                = the population of the city
+infrastructureUtilization = the lowest utilisation of the four networks
+```
+
+The signal is only produced while the city **runs something** — an untouched city leaves the
+economy exactly as it was.
+
+The Economy Engine derives the urban activity index and applies two bounded factors:
+
+```
+urbanIndex = commercialActivity × 0.4 + researchCapacity × 0.3
+           + min(1, industrialCapacity / 500) × 100 × 0.2
+           + min(1, population / 5 000) × 100 × 0.1
+
+demandFactor    = 1 + (urbanIndex / 100) × categoryWeight × 0.15      (≤ 1.15)
+saturationFactor= 1 + (urbanIndex / 100) × categoryWeight × 0.25      (≤ 1.25)
+```
+
+`categoryWeight` is 1.0 for compute and logistics, 0.9 for materials and 0.6 for energy. The
+energy commodity additionally reacts to the urban energy demand (≤ 1.10). The city is a
+**consumer** — it never adds supply to the market. Both factors are deterministic, bounded and
+applied exactly once per tick. **Without a city signal both factors are exactly 1** and the market
+behaves exactly as in Stage 04 — this is covered by a test.
+
+### 7.10 The city and the corporation
+
+- The city has **no treasury of its own**. Every payment uses the balance and the ledger of the
+  player corporation.
+- The land acquisition and the construction are `city` transactions, the disposal is a
+  `city-sale` transaction.
+- The **operating cost** of the running city buildings is accrued into the operating expenses of
+  the corporation, exactly like the Stage 03 operating costs — it reduces the net profit and the
+  tier progression. Expansion therefore has a running price.
+- A command that cannot be afforded fails completely: neither the city nor the corporation is
+  changed.
+
+---
+
+## 8. Final Simulation Tick Order
 
 ```
 1. Game Clock         — advances the simulated time (engine owned, before the systems)
 2. World Engine       — order 10
-3. Economy Engine     — order 20   ← consumes the world of step 2 and the corporate market signal
-4. Employee Engine    — order 30   ← develops the workforce
-5. Technology Engine  — order 40   ← research uses the workforce of step 4
-6. Product Engine     — order 50   ← development uses the unlocked technologies
-7. Resource Engine    — order 60   ← resource bookkeeping
-8. Production Engine  — order 70   ← consumes the reserved resources
-9. Market Engine      — order 80   ← sells the finished goods
-10. Corporation Engine — order 90   ← accrues the finances, payroll, progression
+3. City Engine        — order 15  ← produces the city market signal
+4. Economy Engine     — order 20  ← consumes the world and the two market signals
+5. Employee Engine    — order 30  ← develops the workforce
+6. Technology Engine  — order 40  ← research uses the workforce of step 5
+7. Product Engine     — order 50  ← development uses the unlocked technologies
+8. Resource Engine    — order 60  ← resource bookkeeping
+9. Production Engine  — order 70  ← consumes the reserved resources
+10. Market Engine     — order 80  ← sells the finished goods
+11. Corporation Engine — order 90  ← accrues the finances, payroll, progression
 ```
 
 Dependencies respected by the order:
 - the clock advances before every system;
 - **world → economy** is preserved unchanged from Stage 02;
+- **city → economy** is the Stage 05 dependency: the City Engine produces the city market signal
+  and the Economy Engine consumes it **in the same tick**;
 - research uses the workforce developed in the same tick;
 - product development uses the technologies unlocked in the same tick;
 - production uses the products completed and the resources reserved before it;

@@ -50,7 +50,7 @@ export function MainNavigation({ onClose }: MainNavigationProps) {
     { key: 'corporation', label: 'Corporation', icon: Buildings, status: 'baseline' },
     { key: 'technology', label: 'Technology', icon: MagnifyingGlass, status: 'planned' },
     { key: 'production', label: 'Production', icon: Factory, status: 'planned' },
-    { key: 'city', label: 'City Engine', icon: MapPin, status: 'planned' },
+    { key: 'city', label: 'City Engine', icon: MapPin, status: 'ready' },
     { key: 'employees', label: 'Employees', icon: Users, status: 'baseline' },
     { key: 'competitors', label: 'Competitor AI', icon: ShieldWarning, status: 'planned' },
     { key: 'save', label: 'Save & Archive', icon: Rocket, status: 'planned' },
@@ -91,8 +91,8 @@ export function MainNavigation({ onClose }: MainNavigationProps) {
         </ul>
 
         <div className="nav-footer">
-          <div className="nav-footer-label">Stage 03 — Corporation &amp; Employees</div>
-          <div className="nav-footer-label text-muted">World, economy &amp; workforce live</div>
+          <div className="nav-footer-label">Stage 05 — City Engine</div>
+          <div className="nav-footer-label text-muted">Urban infrastructure is live</div>
         </div>
       </div>
     </nav>
