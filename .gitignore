@@ -1,0 +1,38 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.idea
+.vscode/*.suo
+.vscode/*.ntvs*
+.vscode/ninja.*
+.vs
+*.swp
+*.swo
+
+# Environment
+.env
+.env.*
+!.env.example
+.env.development.local
+.env.production.local
+*.pem
+
+# Capacitor
+android/
+ios/
+
+# OS
+.DS_Store
+Thumbs.db

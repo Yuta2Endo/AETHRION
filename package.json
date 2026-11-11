@@ -1,0 +1,52 @@
+{
+  "name": "aethrion",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "AETHRION — Hybrid Empire Simulator. Premium Neon Sci-Fi. Build your empire. Shape the future.",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:ui": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext ts,tsx --max-warnings 0",
+    "android:init": "npx cap init",
+    "android:add": "npx cap add android",
+    "android:sync": "npx cap sync android",
+    "android:open": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/core": "^6.1.0",
+    "@phosphor-icons/react": "^2.1.10",
+    "comlink": "^4.4.1",
+    "framer-motion": "^11.11.0",
+    "idb": "^8.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": "^0.171.0",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.0",
+    "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/react": "^16.1.0",
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.171.0",
+    "@vitejs/plugin-react": "^4.3.3",
+    "eslint": "^9.14.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.12",
+    "globals": "^15.11.0",
+    "jsdom": "^25.0.0",
+    "playwright": "^1.49.0",
+    "typescript": "~5.6.0",
+    "typescript-eslint": "^8.13.0",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.4"
+  }
+}
