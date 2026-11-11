@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 
 function md5(input) {
   return createHash('md5').update(input).digest('hex');
@@ -6,6 +6,17 @@ function md5(input) {
 
 export function normalizeSignature(value) {
   return String(value ?? '').trim().toLowerCase();
+}
+
+function safeEqualHex(a, b) {
+  const aa = Buffer.from(normalizeSignature(a), 'utf8');
+  const bb = Buffer.from(normalizeSignature(b), 'utf8');
+  if (aa.length !== bb.length) return false;
+  try {
+    return timingSafeEqual(aa, bb);
+  } catch {
+    return false;
+  }
 }
 
 export function generateRobokassaPaymentSignature({ merchantLogin, outSum, invId, password1, shpParams }) {
@@ -43,7 +54,7 @@ export function verifyRobokassaResultSignature(notification, password2) {
     password2,
     shpParams: extractShpParams(notification),
   });
-  return normalizeSignature(expected) === normalizeSignature(notification.SignatureValue);
+  return safeEqualHex(expected, notification.SignatureValue);
 }
 
 export function validateNotificationAgainstOrder(order, notification) {

@@ -19,9 +19,10 @@ const ROBOKASSA_MERCHANT_LOGIN = process.env.ROBOKASSA_MERCHANT_LOGIN || '';
 const ROBOKASSA_PASSWORD1 = process.env.ROBOKASSA_PASSWORD1 || '';
 const ROBOKASSA_PASSWORD2 = process.env.ROBOKASSA_PASSWORD2 || '';
 const ROBOKASSA_IS_TEST = String(process.env.ROBOKASSA_IS_TEST || 'true').toLowerCase() !== 'false';
-const ROBOKASSA_PAYMENT_URL = process.env.ROBOKASSA_PAYMENT_URL || (ROBOKASSA_IS_TEST
-  ? 'https://auth.robokassa.ru/Merchant/Index.aspx'
-  : 'https://auth.robokassa.ru/Merchant/Index.aspx');
+const ROBOKASSA_PAYMENT_URL = process.env.ROBOKASSA_PAYMENT_URL || 'https://auth.robokassa.ru/Merchant/Index.aspx';
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const ALLOW_INSECURE_AUTH_STUB = String(process.env.ALLOW_INSECURE_AUTH_STUB ?? 'true').toLowerCase() !== 'false';
+const REQUIRE_REAL_AUTH = String(process.env.REQUIRE_REAL_AUTH ?? (NODE_ENV === 'production' ? 'true' : 'false')).toLowerCase() === 'true';
 
 // Server-authoritative product catalogue (never trust client price/entitlement)
 const PRODUCTS = new Map([
@@ -39,11 +40,26 @@ function nextInvoiceId() {
 }
 
 function requireAuth(req, res, next) {
-  // Minimal auth placeholder: in production replace with real authenticated session/JWT verification.
-  // Accepts x-account-id for local/testing; never trust for real deployment without proper auth.
-  const accountId = String(req.header('x-account-id') || req.body?.accountId || '').trim();
+  // Development/local stub only. Do not treat x-account-id as secure authentication.
+  // Real deployments must integrate authenticated identity (session/JWT/provider) and set REQUIRE_REAL_AUTH=true.
+  if (REQUIRE_REAL_AUTH) {
+    return res.status(501).json({
+      error: 'Payment authentication is not configured. Real authenticated identity provider integration is required before payment creation in this environment.',
+      code: 'REAL_AUTH_REQUIRED',
+    });
+  }
+
+  if (!ALLOW_INSECURE_AUTH_STUB) {
+    return res.status(401).json({ error: 'Unauthorized: insecure auth stub disabled.' });
+  }
+
+  const accountId = String(req.header('x-account-id') || '').trim();
   if (!accountId) {
-    return res.status(401).json({ error: 'Unauthorized: authenticated account required (x-account-id missing in this local server stub).' });
+    return res.status(401).json({ error: 'Unauthorized: x-account-id header required for local development stub only.' });
+  }
+  // Basic format guard for stub; still not secure identity.
+  if (!/^[A-Za-z0-9._:-]{1,64}$/.test(accountId)) {
+    return res.status(400).json({ error: 'Invalid account identifier format.' });
   }
   req.accountId = accountId;
   next();
@@ -54,7 +70,16 @@ function robokassaConfigured() {
 }
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, robokassaConfigured: robokassaConfigured(), testMode: ROBOKASSA_IS_TEST, db: path.basename(DB_PATH) });
+  res.json({
+    ok: true,
+    robokassaConfigured: robokassaConfigured(),
+    testMode: ROBOKASSA_IS_TEST,
+    db: path.basename(DB_PATH),
+    auth: {
+      requireRealAuth: REQUIRE_REAL_AUTH,
+      insecureStubAllowed: ALLOW_INSECURE_AUTH_STUB && !REQUIRE_REAL_AUTH,
+    },
+  });
 });
 
 app.get('/products', (_req, res) => {
@@ -132,15 +157,21 @@ app.all('/payments/robokassa/result', (req, res) => {
     if (!ROBOKASSA_PASSWORD2) {
       return res.status(503).send('ERROR');
     }
+
+    const invId = String(notification.InvId ?? '');
+    if (!/^\d{1,32}$/.test(invId)) {
+      return res.status(400).send('ERROR');
+    }
+
     if (!verifyRobokassaResultSignature(notification, ROBOKASSA_PASSWORD2)) {
       return res.status(400).send('ERROR');
     }
 
     const outcome = withTransaction(db, () => {
-      const order = paymentStore.getByInvoiceId(String(notification.InvId));
-      if (!order) return { ok: false, duplicate: false, reason: 'unknown' };
+      const order = paymentStore.getByInvoiceId(invId);
+      if (!order) return { ok: false, duplicate: false };
       const errors = validateNotificationAgainstOrder(order, notification);
-      if (errors.length) return { ok: false, duplicate: false, reason: errors.join(' '), order };
+      if (errors.length) return { ok: false, duplicate: false, order };
 
       if (order.status === 'paid' && order.entitlementGranted) {
         return { ok: true, duplicate: true, order };
@@ -155,14 +186,14 @@ app.all('/payments/robokassa/result', (req, res) => {
         status: 'paid',
         entitlementGranted: true,
         updatedAt: Date.now(),
-        providerTransactionRef: String(notification.InvId),
+        providerTransactionRef: invId,
       };
       paymentStore.save(updated);
       return { ok: true, duplicate: false, order: updated };
     });
 
     if (!outcome.ok) return res.status(400).send('ERROR');
-    return res.status(200).send(`OK${String(notification.InvId)}`);
+    return res.status(200).send(`OK${invId}`);
   } catch (_err) {
     return res.status(500).send('ERROR');
   }
