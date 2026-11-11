@@ -99,6 +99,7 @@ G:\Developing\AETHRION/
     ├── TECHNICAL_ARCHITECTURE.md
     ├── DESIGN_SYSTEM.md
     ├── DEVELOPMENT_ROADMAP.md
+    ├── SECURITY_AUDIT.md
     └── STAGE_01_FINAL_REPORT.md
 ```
 
@@ -172,14 +173,50 @@ Configuration (13): package.json, tsconfig.json, tsconfig.node.json, vite.config
 
 Source (51 files under src/): entry, App, CSS, vite-env.d.ts, app (shell, navigation, provider), core (config, events, logging, types, utils, error), game (engine, state, clock, systems), simulation (9 domain modules), rendering (index + 5 three.js submodules), ui (tokens, components x3, screens x2), services (persistence, audio, assets), workers dir, platform/android, tests (setup + Button test).
 
-Documentation (6): PROJECT_OVERVIEW.md, GAME_DESIGN_OVERVIEW.md, TECHNICAL_ARCHITECTURE.md, DESIGN_SYSTEM.md, DEVELOPMENT_ROADMAP.md, STAGE_01_FINAL_REPORT.md.
+Documentation (7): PROJECT_OVERVIEW.md, GAME_DESIGN_OVERVIEW.md, TECHNICAL_ARCHITECTURE.md, DESIGN_SYSTEM.md, DEVELOPMENT_ROADMAP.md, SECURITY_AUDIT.md, STAGE_01_FINAL_REPORT.md.
 
 ---
 
 ## 6. Dependencies Installed
 
-`npm install` → **added 386 packages, audited 387 packages** in 44s.  
-17 vulnerabilities reported (12 moderate, 2 high, 3 critical) — all are transitive dev-tool advisories (deprecated `tar`, `glob`, `whatwg-encoding`, eslint 9.39.5 support window). None are in the production runtime bundle. Not auto-fixed to avoid breaking changes in Stage 01.
+`npm install` → **added 386 packages, audited 387 packages** in 44s.
+
+### Full `npm audit` result
+
+| Scope | Result |
+|-------|--------|
+| `npm audit` (full tree) | **17 vulnerabilities** — 3 critical, 2 high, 12 moderate, 0 low, 0 info |
+| `npm audit --omit=dev` (production runtime only) | **0 vulnerabilities** ✅ |
+
+**All 17 vulnerabilities come exclusively from `devDependencies`.** The production runtime bundle is not affected: `react`, `react-dom`, `zustand`, `three`, `framer-motion`, `@phosphor-icons/react`, `comlink`, `idb`, `@capacitor/core` and `@capacitor/android` are all clean.
+
+**Affected packages (16), all reachable only through dev tooling:**
+
+| Package | Severity | Direct dev dep? | Fix available |
+|---------|----------|-----------------|---------------|
+| `vitest` | critical | yes | `vitest@5.1.0` (semver-major) |
+| `tinypool` | critical | no (via vitest) | `vitest@5.1.0` (semver-major) |
+| `tar` | critical | no (via `@capacitor/cli` → `rimraf`) | `@capacitor/cli@8.6.0` (semver-major) |
+| `vite` | high | yes | `vite@8.3.8` (semver-major) |
+| `@capacitor/cli` | high | yes | `@capacitor/cli@8.6.0` (semver-major) |
+| `@vitest/mocker` | moderate | no (via vitest) | `vitest@5.1.0` (semver-major) |
+| `vite-node` | moderate | no (via vitest) | `vitest@5.1.0` (semver-major) |
+| `esbuild` | moderate | no (via vite) | `vite@8.3.8` (semver-major) |
+| `glob` | moderate | no (via rimraf) | `@capacitor/cli@8.6.0` (semver-major) |
+| `rimraf` | moderate | no (via `@capacitor/cli`) | `@capacitor/cli@8.6.0` (semver-major) |
+| `minimatch` | moderate | no (via typescript-eslint, glob) | `@capacitor/cli@8.6.0` (semver-major) |
+| `typescript-eslint` | moderate | yes | none available |
+| `@typescript-eslint/eslint-plugin` | moderate | no | none available |
+| `@typescript-eslint/parser` | moderate | no | none available |
+| `@typescript-eslint/type-utils` | moderate | no | none available |
+| `@typescript-eslint/typescript-estree` | moderate | no | none available |
+| `@typescript-eslint/utils` | moderate | no | none available |
+
+**29 individual advisories** are tracked in `docs/SECURITY_AUDIT.md` with severity, affected version range, GHSA identifier and link for each.
+
+**Why nothing was auto-fixed:** every available fix requires a semver-major upgrade, so plain `npm audit fix` has no eligible action. The three upgrade paths (`vitest@5`, `vite@8`, `@capacitor/cli@8`) are interdependent and breaking. They are recorded as a dedicated maintenance task with mandatory re-validation rather than being applied to a validated greenfield foundation. `typescript-eslint` has no fix available at all (inherited `minimatch` advisory).
+
+**Runtime risk: none.** None of the affected packages ship in `dist/`. Practical dev-workstation guidance: do not expose the Vite dev server (`--host`) to an untrusted network (the `vite`/`esbuild` advisories affect the dev server only).
 
 ---
 
@@ -191,7 +228,9 @@ Documentation (6): PROJECT_OVERVIEW.md, GAME_DESIGN_OVERVIEW.md, TECHNICAL_ARCHI
 | `npm run typecheck` (`tsc --noEmit`) | ✅ Pass — no errors |
 | `npm run lint` (ESLint, max-warnings 0) | ✅ Pass — no errors/warnings |
 | `npm test` (vitest run) | ✅ Pass — 1 file, 3 tests passed |
-| `npm run build` (typecheck + vite build) | ✅ Pass — built in 2.34s |
+| `npm run build` (typecheck + vite build) | ✅ Pass — built in 4.01s |
+| `npm audit` | ⚠️ 17 vulnerabilities (3 critical, 2 high, 12 moderate) — devDependencies only |
+| `npm audit --omit=dev` | ✅ 0 vulnerabilities — production runtime clean |
 | Dev server (`npm run dev`) | ✅ Started — `localhost:5173` ready, HTTP 200 |
 | `npx cap init com.aethrion.app AETHRION` | ⚠️ Capacitor CLI requires JSON config; `.ts` config not supported by `init`. `capacitor.config.ts` is valid and type-checked. |
 | `npx cap add android` | ❌ Not run — no Android SDK (`ANDROID_HOME`, `adb`, `gradle` absent) in this environment |
@@ -199,7 +238,7 @@ Documentation (6): PROJECT_OVERVIEW.md, GAME_DESIGN_OVERVIEW.md, TECHNICAL_ARCHI
 Build output:
 - `dist/index.html` 0.58 kB
 - `dist/assets/index-BCH_m4kP.css` 11.24 kB (gzip 2.81 kB)
-- `dist/assets/index-CpKfssVM.js` 411.42 kB (gzip 117.05 kB)
+- `dist/assets/index-C3I5Cslt.js` 404.49 kB (gzip 124.95 kB)
 
 ---
 
@@ -209,11 +248,11 @@ Build output:
 
 ```
 vite v5.4.21 building for production...
-✓ 1460 modules transformed.
-✓ built in 2.34s
+✓ 4950 modules transformed.
+✓ built in 4.01s
 dist/index.html  0.58 kB
 dist/assets/index-BCH_m4kP.css 11.24 kB
-dist/assets/index-CpKfssVM.js 411.42 kB
+dist/assets/index-C3I5Cslt.js 404.49 kB
 ```
 
 Type checking runs as part of the build (`npm run build` = `tsc --noEmit && vite build`) and passed.
@@ -237,10 +276,14 @@ Playwright is configured (`playwright.config.ts`) but E2E tests were not execute
 
 ## 10. Known Issues
 
-1. None — `@phosphor-icons/react@2.1.10` provides all required icons.
+1. `@phosphor-icons/react@2.1.10` provides all required icons — no open icon issue.
 2. Capacitor `init` does not support `capacitor.config.ts` (requires JSON). The `.ts` config is valid and type-checked; `cap init` must be run after converting/adding a `capacitor.config.json` if needed.
 3. Android native integration (`cap add android`, Google Play Billing, AdMob) cannot be validated in this environment — no Android SDK installed. Marked as "planned" per development rules (no monetization before gameplay foundations).
-4. 17 transitive vulnerability advisories in dev tooling (not runtime). Left unfixed to avoid breaking changes.
+4. **17 devDependency vulnerabilities** (3 critical, 2 high, 12 moderate) across 16 packages and 29 individual advisories — full breakdown in `docs/SECURITY_AUDIT.md`.
+   - Production runtime is **clean**: `npm audit --omit=dev` → 0 vulnerabilities.
+   - Not auto-fixed because every fix requires a semver-major upgrade (`vitest@5`, `vite@8`, `@capacitor/cli@8`); `typescript-eslint` has no fix available.
+   - Risk is limited to the dev workstation: do not expose the Vite dev server to an untrusted network.
+   - Remediation is scheduled as a dedicated maintenance task with full re-validation.
 
 ---
 
@@ -254,15 +297,23 @@ None for Stage 01 — all acceptance criteria verified complete.
 
 (Per `docs/DEVELOPMENT_ROADMAP.md`; to begin only upon user approval.)
 
-1. Implement Game Core engine: game loop, clock, game state store.
-2. Wire World Engine + Economy Engine with typed interfaces.
-3. Implement corporation creation and employee hiring (basic).
-4. Move simulation ticks to a Web Worker (Comlink) off the main thread.
-5. Add React screens bound to game state (empire overview dashboard).
-6. Implement save/load via IndexedDB (`src/services/persistence/indexedDB.ts`).
-7. Expand UI component library and dashboard with live data.
-8. Add component + simulation unit tests (Vitest).
-9. Add E2E smoke tests (Playwright).
-10. Revisit Android init once Android SDK is available; document Google Play Billing / AdMob integration plan.
+Stage 02 scope is the simulation backbone only:
+
+1. Game Core engine: game loop, tick scheduling, pause/resume, deterministic tick order.
+2. Game clock integration (simulated time, speed control) wired into the engine.
+3. Game state store with typed selectors (separate from application state).
+4. World Engine baseline: regions, world state evolution.
+5. Economy Engine baseline: markets, currencies, pricing.
+6. React screens bound to game state (empire overview dashboard replacing the placeholder).
+7. Expand the UI component library with real data bindings.
+8. Unit tests for game core, clock and simulation modules.
+
+**Explicitly NOT part of Stage 02** (scheduled in later stages per the roadmap):
+
+| Task | Stage |
+|------|-------|
+| Corporation creation, employee hiring | Stage 03 |
+| Web Worker / Comlink simulation integration | Stage 07 |
+| IndexedDB save/load, save slots and archives | Stage 08 |
 
 **Do not begin STAGE 02 automatically. Awaiting user approval.**
