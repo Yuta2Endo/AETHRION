@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Hamburger, ShieldCheck, ChartLine, Gear } from '@phosphor-icons/react';
 import { MainNavigation } from '@/app/navigation/MainNavigation';
@@ -6,6 +6,7 @@ import { useAppStore } from '@/app/providers/AppProvider';
 import { LoadingScreen } from '@/ui/screens/LoadingScreen';
 import { Dashboard } from '@/ui/screens/Dashboard';
 import { simulation } from '@/game/simulationRunner';
+import { createLifecycleManager } from '@/platform/lifecycle/lifecycle';
 
 /**
  * Main application shell.
@@ -18,6 +19,11 @@ export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const { theme, toggleTheme } = useAppStore();
+  const sidebarOpenRef = useRef(false);
+
+  useEffect(() => {
+    sidebarOpenRef.current = sidebarOpen;
+  }, [sidebarOpen]);
 
   useEffect(() => {
     const engine = simulation.getEngine();
@@ -30,9 +36,20 @@ export function AppShell() {
     // Fallback so a stalled simulation never leaves the user on the loading screen.
     const fallback = setTimeout(() => setInitialized(true), 3000);
 
+    const lifecycle = createLifecycleManager({
+      onBackButton: () => {
+        if (sidebarOpenRef.current) {
+          setSidebarOpen(false);
+          return true;
+        }
+        return false;
+      },
+    });
+
     return () => {
       unsubscribe();
       clearTimeout(fallback);
+      lifecycle.dispose();
       simulation.stop();
     };
   }, []);

@@ -1,23 +1,47 @@
 /**
- * Android platform integration (planned for later stages).
- * Stage 01: status documented only. Google Play Billing and AdMob integrations
- * are planned and will be wired via Capacitor once gameplay foundations exist.
- * No monetization or ads are added in Stage 01 per development rules.
+ * Android platform integration status (Stage 10).
+ *
+ * This module reports client-side platform/monetization configuration state.
+ * It does not claim native SDK/device verification or external enrollment.
  */
 
-export const androidPlatform = {
-  initialized: false,
-  billingAvailable: false,
-  adsAvailable: false,
-  status: 'planned',
-  notes: [
-    'Capacitor configured (capacitor.config.ts).',
-    'Google Play Billing — planned for later stages.',
-    'Google AdMob — planned for later stages.',
-    'No monetization before gameplay foundations exist.',
-  ],
-} as const;
+import { getPlatformInfo, isAndroidNative } from '@/platform/capacitor/platform';
+import { readPlatformConfig, validatePlatformConfig } from '@/platform/config/platformConfig';
 
 export function getAndroidPlatformStatus() {
-  return { ...androidPlatform };
+  const platform = getPlatformInfo();
+  const config = readPlatformConfig();
+  const configIssues = validatePlatformConfig(config);
+
+  return {
+    initialized: platform.hasCapacitor,
+    platform,
+    androidNative: isAndroidNative(),
+    distributionMode: config.distributionMode,
+    ads: {
+      provider: 'yandex' as const,
+      enabled: config.adsEnabled,
+      mode: config.adsMode,
+      rewardedUnitConfigured: !!config.yandexRewardedAdUnitId,
+      sdkIntegrated: false,
+      deviceVerified: false,
+    },
+    payments: {
+      provider: 'robokassa' as const,
+      enabled: config.paymentsEnabled,
+      serverAuthoritative: true,
+      backendImplemented: false,
+      deviceVerified: false,
+    },
+    configIssues,
+    notes: [
+      'Capacitor configuration audited (capacitor.config.ts, appId com.aethrion.app, webDir dist, androidScheme https).',
+      'Root native android/ project not present in repository; Android toolchain/device verification not performed in this environment.',
+      'Yandex Mobile Ads selected for advertising; integration requires native Android SDK/plugin and valid ad unit IDs.',
+      'Robokassa selected for purchases; server-authoritative verification and external enrollment/policy gates required.',
+      'No secrets or merchant credentials are stored in the client.',
+    ],
+  } as const;
 }
+
+export { getPlatformInfo, isAndroidNative } from '@/platform/capacitor/platform';

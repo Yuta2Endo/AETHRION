@@ -1,8 +1,8 @@
 # AETHRION — Development Roadmap
 
 **Project:** AETHRION  
-**Stage:** 09 — Rendering Engine & World View (current)  
-**Status:** Stage 09 complete — Stage 10 awaiting user approval
+**Stage:** 10 — Android Native Integration & Monetization (current)  
+**Status:** Stage 10 implemented with documented external blockers — Stage 11 awaiting user approval
 
 ---
 
@@ -34,8 +34,6 @@
 - **Tests**: 85 passing (was 3) — engine, clock, world, economy, integration and component coverage.
 - Documentation updated; `docs/STAGE_02_FINAL_REPORT.md` created.
 
-**Still deferred to later stages (unchanged):** corporation creation and employee hiring (Stage 03), Web Worker integration (Stage 07), IndexedDB save/load (Stage 08).
-
 ---
 
 ## Completed — Stage 03: Corporation & Employee Engines
@@ -44,161 +42,126 @@
 - **Employee Engine**: employee model with skill, experience, salary, productivity, satisfaction, morale and employment status; five data-driven professions; deterministic hiring with department availability, capacity and funds checks; deterministic development model (experience, skill, satisfaction, morale, productivity) with a bounded development history.
 - **Payroll model**: a fixed seven in-game day period derived from the simulated clock, at-most-once processing per period, a full payroll or a recorded miss — never partial payment and never created money.
 - **Simulation integration**: the employee and corporation systems were added to the runner (orders 30 and 40), preserving the world → economy order; the workforce developed in a tick feeds the corporation in the same tick.
-- **Command layer** (`src/game/commands.ts`): the single entry point for player actions — establish corporation, hire, dismiss. All validation errors are surfaced to the interface.
-- **Game state**: `corporation` and `employees` slices added, typed selectors extended, still no persistence and no domain logic inside Zustand.
-- **Interface**: Corporation Overview, Employee Management, Hiring and Finance Overview sections added to the dashboard; new primitives `TextField`, `SelectField`, `EmployeeRow`, `TransactionRow`; empty, error and success states.
-- **Tests**: 170 passing (was 85) — corporation, employee, payroll, integration and interface coverage.
+- **Command layer**: the single entry point for player actions — establish corporation, hire, dismiss. All validation errors are surfaced to the interface.
+- **Game state**: `corporation` and `employees` slices added, typed selectors extended.
+- **Interface**: Corporation Overview, Employee Management, Hiring and Finance Overview sections.
+- **Tests**: 170 passing (was 85).
 - Documentation updated; `docs/STAGE_03_FINAL_REPORT.md` created.
-
-**Still deferred to later stages (unchanged):** technology tree, production and manufacturing (Stage 04), cities (Stage 05), events and competitor AI (Stage 06), Web Workers (Stage 07), IndexedDB save/load (Stage 08), Three.js world rendering (Stage 09).
 
 ---
 
 ## Completed — Stage 04: Technology & Production Engines
 
-- **Technology Research Engine**: a data-driven tree of 20 technologies in six categories, prerequisites, tier gating, research projects with a deterministic contribution model driven by the Stage 03 workforce, unlock effects (production efficiency, research speed, quality, market reach, resource yield), cancellation and a bounded research history.
-- **Product Development Engine**: six data-driven product blueprints, technology prerequisites, development projects with a deterministic contribution model (engineers 100 %, researchers 70 %), a transparent quality formula, innovation and market readiness.
-- **Resource & Supply Chain**: eight resources priced from the live market, an inventory with balances, reservations and a bounded ledger, and fully atomic purchase / reserve / release / consume operations — a failed operation never partially consumes resources.
-- **Production Engine**: four facility types with capability checks, production orders with resource reservation, effective efficiency from the assigned workforce, deterministic duration and operating cost, completion into the product inventory and cancellation that releases the reservation.
-- **Market Integration**: demand from the commercial activity, quality, price and the unlocked market reach; inventory-limited sales; batched sale transactions; and the `CorporateMarketSignal` now consumed by the Economy Engine.
-- **Simulation integration**: the tick order grew to nine systems (world → economy → employees → technology → products → resources → production → market → corporation) while preserving the Stage 02 world → economy dependency.
-- **Command layer** split into a focused module per domain — 16 validated player commands in total, every one returning a typed result and leaving the state unchanged on failure.
-- **Interface**: Technology & Research, Product Development, Resource Inventory, Manufacturing and Products & Market sections; the finance overview extended with the research, development, resource, manufacturing and sales figures.
-- **Tests**: 285 passing (was 170) — including an end-to-end test of the complete economic chain.
-- Documentation updated; `docs/ENGINE_RULES.md` and `docs/STAGE_04_FINAL_REPORT.md` created.
-
-**Still deferred to later stages (unchanged):** cities (Stage 05), events and competitor AI (Stage 06), Web Workers (Stage 07), IndexedDB save/load (Stage 08), Three.js world rendering (Stage 09).
+- **Technology Research Engine**: data-driven tree (20 technologies, 6 categories), prerequisites, tier gating, deterministic contribution model, unlock effects, cancellation and bounded history.
+- **Product Development Engine**: data-driven blueprints, technology prerequisites, deterministic development/quality/innovation/market readiness.
+- **Resource & Supply Chain**: inventory with reservations and bounded ledger; fully atomic purchase/reserve/release/consume operations.
+- **Production Engine**: facilities, capability checks, production orders, deterministic duration/cost, completion/cancellation.
+- **Market Integration**: demand/sales and `CorporateMarketSignal` consumed by Economy Engine.
+- **Simulation integration**: tick order extended to 9 systems preserving prior dependencies.
+- **Command layer** split by domain (16 validated commands).
+- **Interface**: Technology & Research, Product Development, Resource Inventory, Manufacturing, Products & Market sections.
+- **Tests**: 285 passing (was 170).
+- Documentation updated; `docs/ENGINE_RULES.md`, `docs/STAGE_04_FINAL_REPORT.md` created.
 
 ---
 
 ## Completed — Stage 05: City Engine & Urban Infrastructure
 
-- **City Engine**: one city with five districts (Downtown, Industrial Zone, Research Park, Residential District, Energy District), a finite land map of thirty plots, a data-driven catalogue of thirteen building definitions, a deterministic construction lifecycle, four urban infrastructure networks, an aggregate population and labour model and five bounded urban indicators.
-- **Land & construction**: plots are bought and sold through the corporate ledger, the zoning and the district type are two independent restrictions, an occupied plot can neither be sold nor reused, a construction completes exactly once, a cancellation is a documented sunk cost and a demolition releases the plot.
-- **Infrastructure**: the capacity (municipal baseline + providers) and the demand (consumers) are aggregated city wide. The weakest network defines the service level; below 25 % the buildings shut down, below 100 % their output is reduced. The operational status therefore responds to a shortage.
-- **Population & employment**: the population converges towards the housing capacity, is capped by it at all times, and the unemployment can never become negative. The Employee Engine stays the only authority for the corporate employees — the city only stores references.
-- **Corporation integration**: the city has no treasury of its own. The land and the construction are `city` transactions, the disposal is a `city-sale` transaction, and the operating cost of the running buildings is accrued into the operating expenses of the corporation, so expansion has a running price.
-- **Economy integration**: the new `CityMarketSignal` raises the commodity demand by at most 15 % and the saturation ceiling by at most 25 %. The city is a consumer and never adds supply. Without a city signal the economy behaves exactly as in Stage 04.
-- **Simulation integration**: the tick order grew to ten systems (world → **city** → economy → employees → technology → products → resources → production → market → corporation). The city runs before the economy so that the market signal is consumed in the same tick; the Stage 02 world → economy order is preserved.
-- **Command layer**: a new `cityCommands.ts` module with ten validated player commands, every one returning a typed result and leaving the state unchanged on failure.
-- **Interface**: City Overview, District Management, Urban Infrastructure, Land Management and Construction & Buildings sections on the dashboard; the finance overview extended with the city investments and the land disposal.
-- **Tests**: 360 passing (was 285) — including a complete city gameplay integration test and nine interface tests.
-- Documentation updated; `docs/ENGINE_RULES.md` extended and `docs/STAGE_05_FINAL_REPORT.md` created.
-
-**Still deferred to later stages (unchanged):** events and competitor AI (Stage 06), Web Workers (Stage 07), IndexedDB save/load (Stage 08), Three.js world rendering (Stage 09).
+- **City Engine**: one city, 5 districts, 30 plots, 13 data-driven building definitions, deterministic construction lifecycle, 4 infrastructure networks, population/labour model and bounded indicators.
+- **Land & construction**: plot purchase/sale through corporate ledger, zoning/district compatibility, lifecycle rules (sunk-cost cancellation, demolition releases plot).
+- **Infrastructure & population**: capacity/demand aggregation, service-level/operational factor, housing-capped population and non-negative unemployment.
+- **Economy integration**: `CityMarketSignal` (bounded demand/saturation influence, no supply).
+- **Simulation integration**: city system inserted before economy (tick order 10 systems).
+- **Interface**: City Overview, District Management, Urban Infrastructure, Land Management, Construction & Buildings.
+- **Tests**: 360 passing (was 285).
+- Documentation updated; `docs/STAGE_05_FINAL_REPORT.md` created.
 
 ---
 
 ## Completed — Stage 06: Events & Competitor AI Engines
 
-- **Global Events Engine**: seventeen data-driven events in six categories (economic, technology, industrial, energy, environment, geopolitical) with typed, bounded and serialisable effects — no callbacks inside the data.
-- **Event scheduling**: a deterministic, seeded xorshift generator whose state lives in the events state; a weighted selection every twelve simulated hours, cooldowns per event, at most three simultaneous events and a maximum of one evaluation per tick.
-- **Event lifecycle**: an event activates exactly once and expires exactly once; the effects stack multiplicatively with an explicit clamp (0.5 … 2) and the pressures additively (0 … 1); an expired event has no influence any more.
-- **Player responses**: seven events offer a real choice — the cost is charged through the corporate ledger, some responses buy resources through the Resource Engine, the relief scales the effects of its own event instance and it may only be applied once.
-- **World, city and economy integration**: the events modulate the commodity demand and supply, the operating costs, the research speed, the production output, the market demand, the infrastructure and the environment of the city and the activity of the competitors — every modifier bounded and applied in the same tick.
-- **Competitor AI Engine**: three independent AI corporations (NEXORA INDUSTRIES, VANTEX GLOBAL, HELION DYNAMICS) with five personality profiles, their own compact financial model, their own research programmes, their own market presence and their own relationship with the player.
-- **Decision engine**: nine weighted objectives, a deterministic evaluation order, a twenty-four hour decision interval, a seventy-two hour action cooldown, an affordability check and a bounded action history.
-- **Technology competition**: the AI reuses the existing Stage 04 technology tree — the same definitions, the same prerequisites and the same durations. No second tree.
-- **Market integration**: the new `CompetitorMarketSignal` raises the commodity supply and demand by at most 12 %; the AI never touches the market directly and never touches the player finances.
-- **News system**: a bounded feed of forty items, generated exclusively from real simulation events — the activations, the expirations, the decisions of the AI and the technology breakthroughs.
-- **Simulation integration**: the tick order grew to twelve systems (world → **events** → city → economy → employees → technology → products → resources → production → market → **competitors** → corporation). The events run first so their modifiers apply in the same tick; the AI runs after the market so nothing that was already calculated is changed retroactively.
-- **Command layer**: a new `eventCommands.ts` (respond to an event, mark a news item as read) and a new `competitorCommands.ts` (read-only inspection of an AI corporation). No command exists that has no gameplay purpose.
-- **Interface**: Global Events, News Feed and Competitor Overview sections with the dossier of a corporation; the market section extended with the competitive pressure per commodity.
-- **Tests**: 464 passing (was 360) — including the complete event and competitor gameplay chain.
-- Documentation updated; `docs/EVENT_SYSTEM.md` and `docs/COMPETITOR_AI.md` created, `docs/ENGINE_RULES.md` extended and `docs/STAGE_06_FINAL_REPORT.md` created.
-
-**Still deferred to later stages (unchanged):** Web Workers (Stage 07), IndexedDB save/load (Stage 08), Three.js world rendering (Stage 09).
+- **Global Events Engine**: 17 data-driven events (6 categories), deterministic seeded scheduling, typed bounded effects, lifecycle/expiry, player responses, news feed.
+- **Competitor AI Engine**: 3 AI corporations, personality/objective-driven deterministic decisions, compact finances/research/market presence, `CompetitorMarketSignal`.
+- **Simulation integration**: tick order 12 systems (events early, competitors after market).
+- **Interface**: Global Events, News Feed, Competitor Overview.
+- **Tests**: 464 passing (was 360).
+- Documentation updated; `docs/EVENT_SYSTEM.md`, `docs/COMPETITOR_AI.md`, `docs/STAGE_06_FINAL_REPORT.md`.
 
 ---
 
 ## Completed — Stage 07: Performance & Web Workers
 
-- **Simulation kernel** (`src/game/simulation/kernel.ts`): the twelve domain systems extracted into a pure, injected-store kernel that imports no React, DOM, Zustand or rendering code — the same implementations run on the main thread and inside a Web Worker.
-- **Worker architecture**: a module Worker (`src/game/simulation/worker.ts`) wired through Comlink over a narrow transport boundary, a versioned handshake, a typed tick protocol returning the delta of the changed slices, and a main-thread adapter (`workerClient.ts`) that owns the lifecycle, the sequence validation and the timeout.
-- **Determinism & state integrity**: the Worker runs the same kernel with the same snapshot, context and seeded RNG state, so identical runs produce identical results in inline and worker mode; responses carry a monotonic sequence number, stale or invalid responses are rejected, and a tick is never executed twice after an uncertain failure.
-- **Fallback & recovery**: if the Worker is unavailable, fails the handshake, times out or errors at runtime, the simulation falls back to the main thread and the last confirmed state is preserved. The fallback is explicit and observable.
-- **Game Core integration**: the clock, the scheduler, the tick counter and the lifecycle (start / stop / pause / resume / reset / speed / step) remain on the main thread; the worker path never overlaps ticks.
-- **Performance instrumentation**: a bounded metrics layer (average/max tick, slow ticks, round-trip and worker time, fallback activations) exposed through a compact developer diagnostics section. Honest benchmarks recorded the measured inline and worker costs at the current state size.
-- **Tests**: 487 passing (was 464) — worker protocol and lifecycle, determinism/equivalence, ordering and no-duplication, pause/resume/reset/speed, stale/invalid response handling, fallback and benchmarks, with all existing Stage 01–06 tests still passing.
-- Documentation updated; `docs/WORKER_ARCHITECTURE.md` and `docs/STAGE_07_FINAL_REPORT.md` created.
-
-**Still deferred to later stages (unchanged):** IndexedDB save/load (Stage 08), Three.js world rendering (Stage 09).
+- **Simulation kernel** extracted as pure, injected-store implementation shared by inline and Worker execution.
+- **Worker architecture**: module Worker + Comlink transport, versioned handshake/protocol, delta responses, lifecycle/timeout/fallback, bounded metrics/diagnostics.
+- **Determinism & integrity**: identical results inline/worker, monotonic sequence validation, no overlapping/duplicated ticks, safe fallback.
+- **Tests**: 487 passing (was 464).
+- Documentation updated; `docs/WORKER_ARCHITECTURE.md`, `docs/STAGE_07_FINAL_REPORT.md`.
 
 ---
 
 ## Completed — Stage 08: Save & Archive Engine
 
-- **Persistence subsystem** (`src/game/persistence/`): typed, versioned save format and explicit allowlist of authoritative simulation state (13 slices + simulation meta + clock snapshot, including deterministic RNG state); validation, stable SHA-256 integrity (when available), sequential migrations, and portable JSON archives.
-- **Database & repository:** IndexedDB via `idb` (`aethrion-save` v1) with `saves` (unique per-slot index, metadata listing) and `backups` stores; atomic-per-slot writes, previous-record backup on overwrite, recoverable typed errors.
-- **Save/Load:** manual saves to independent slots (configurable capacity, default 10), rename/delete with confirmation, metadata inspection, export/import (validated, import into empty slot by default). Loads validate/verify/migrate, restore clock/tick/RNG and apply atomically, leave the game paused, and never mutate the active game on failure.
-- **Autosave:** configurable (enabled by default, 5 simulated minutes), simulated-time driven, post-tick, debounced and non-overlapping, rotating autosave slot.
-- **Determinism & Worker compatibility:** save → continue → restore → continue equivalence verified in inline and worker modes; restore stops/resets the Worker client and reinitialises against fresh state (IndexedDB on main thread only).
-- **Clock/Runner hooks:** serialisable `GameClock` snapshot/restore and runner/engine hydration/reset support for safe, atomic restores.
-- **UI:** `SaveLoadSection` (slot manager, autosave settings, confirmations, import/export, status/errors) integrated into the dashboard, responsive and accessible, using existing design tokens/primitives.
-- **Tests:** 502 passing (was 487) — save/load/slots/rename/delete, concurrency, backups, integrity, validation, migration pipeline, archives, autosave, determinism (inline/worker), failed-load preservation; all existing Stage 01–07 tests passing.
-- Documentation: `docs/SAVE_ARCHITECTURE.md`, `docs/SAVE_FORMAT.md`, updated architecture/roadmap/engine rules, and `docs/STAGE_08_FINAL_REPORT.md`.
+- **Persistence subsystem** (`src/game/persistence/`): typed, versioned save format, explicit allowlist, validation, SHA-256 integrity (when available), sequential migrations, portable JSON archives.
+- **Database & repository:** IndexedDB via `idb` (`aethrion-save` v1), `saves`/`backups`, per-slot atomicity and recoverable errors.
+- **Save/Load:** manual slots, rename/delete, metadata, export/import (validated), safe/atomic restore to paused state, failed-load preservation, worker reset/reinit on restore.
+- **Autosave:** simulated-time, post-tick, debounced/non-overlapping, rotating autosave slot.
+- **Determinism:** save → continue → restore → continue verified (inline/worker).
+- **UI:** `SaveLoadSection` integrated.
+- **Tests**: 502 passing (was 487).
+- Documentation updated; `docs/SAVE_ARCHITECTURE.md`, `docs/SAVE_FORMAT.md`, `docs/STAGE_08_FINAL_REPORT.md`.
 
 ---
 
 ## Completed — Stage 09: Rendering Engine & World View
 
-- **Rendering subsystem** (`src/rendering/`): dedicated, simulation-independent rendering layer (types, deterministic city layout adapter, read-only simulation-to-visual adapter, `CityWorld` scene content/sync, `WorldRenderer` lifecycle/camera/controls/selection, quality/WebGL detection). Legacy Stage 01 Three.js placeholders retained for compatibility.
-- **World View:** interactive 3D city visualization driven by actual simulation state (5 districts, 30 plots, buildings) with district grounds/boundaries, plot tiles, procedural building meshes reflecting category and status (planned/constructing/completed/operational/suspended), progress/infra cues, and selection highlights.
-- **Deterministic mapping:** stable visual placement derived from district/plot identifiers (no 3D coords in sim state); same state ⇒ same layout.
-- **Camera & interaction:** orbit/zoom/pan with limits and damping, reset/focus/clear, touch-friendly viewport; raycast selection of districts/plots/buildings with read-only React inspection panel showing real simulation data.
-- **Synchronization & safety:** incremental, ID/state-keyed sync (no full rebuild per render, no authoritative render copy), live updates, save/load restore reflection, worker-mode compatible (reads store state), no save-format change, safe init/dispose/resize/visibility/context-loss handling.
-- **Fallback & performance:** WebGL/error fallback with 2D/textual city overview (real data), Android-conscious quality caps (DPR/AA heuristics), restrained effects, Three.js chunk split. Simulation unaffected by rendering failures/unmount.
-- **Integration:** `WorldViewSection` added to Dashboard; navigation/version updated to v0.9.0.
-- **Tests:** 515 passing (was 502) — layout determinism, adapters/mapping, incremental sync/no-mutation, visual status mapping, save/load visual reflection, WebGL fallback/inspector UI; existing Stage 01–08 suites passing.
-- Documentation: `docs/RENDERING_ARCHITECTURE.md`, `docs/WORLD_VIEW_GUIDE.md`, updated architecture/roadmap, and `docs/STAGE_09_FINAL_REPORT.md`.
-
-**Still deferred to later stages (unchanged):** Android native integration, ads/monetization, multiplayer/cloud sync, new gameplay engines/economic rules/content, advanced rendering scope beyond Stage 09.
+- **Rendering subsystem** (`src/rendering/`): simulation-independent Three.js visualization layer (deterministic layout adapter, read-only visual mapping, `CityWorld`, `WorldRenderer`, quality/WebGL detection, safe lifecycle/disposal).
+- **World View:** interactive 3D city (5 districts, 30 plots, buildings) reflecting actual simulation state/status/progress, incremental sync, save/load reflection, worker-compatible store-driven updates.
+- **Interaction:** orbit/zoom/pan/reset/focus, raycast selection (district/plot/building), read-only inspector, touch-friendly viewport.
+- **Fallback & performance:** WebGL/error fallback with 2D/textual overview (real data), Android-conscious quality caps, restrained effects, chunking.
+- **Tests**: 515 passing (was 502).
+- Documentation updated; `docs/RENDERING_ARCHITECTURE.md`, `docs/WORLD_VIEW_GUIDE.md`, `docs/STAGE_09_FINAL_REPORT.md`.
 
 ---
 
-## Stage 10 (next — pending user approval)
+## Completed with blockers — Stage 10: Android Native Integration & Monetization
 
-- Scope to be defined and explicitly approved by the user.
+**Owner-selected monetization providers (preserved):**
+- **Advertising:** Yandex Mobile Ads (rewarded-first, user-initiated, verified-completion-only rewards).
+- **Purchases:** Robokassa (server-authoritative creation/verification, ResultURL-confirmed, idempotent entitlements, no client secrets).
 
----
+**Implemented in-repo (architectural/client/reference scope):**
+- Capacitor/platform audit and configuration hardening (appId `com.aethrion.app`, `webDir dist`, `https` scheme) and client-safe env/config (`.env.example`) with no secrets.
+- Platform/lifecycle abstractions: Capacitor/native detection, lifecycle manager (visibility + Capacitor App hooks when available), Android back-button handling integration, safe background/foreground behavior without duplicate loops.
+- Mobile rendering profile: configurable quality profile (`auto/low/medium/high`) with DPR/AA heuristics and existing WebGL fallback.
+- Monetization architecture: distribution/payment policy modes and safe gating, Yandex rewarded-ads typed service (init/load/show states, verified completion, idempotent reward granting, dev/prod config validation) with Capacitor plugin bridge contract.
+- Payments architecture: typed payment state machine/client contracts, policy-gated payment client, and **reference server-authoritative Robokassa module** (`server/src/payments/`) implementing signature generation/verification, notification validation (amount/invoice), and idempotent ResultURL processing/entitlement granting logic (automated-tested).
+- Automated tests added for platform config, distribution policy, rewarded-ad lifecycle/idempotency, payment transitions, and Robokassa verification/idempotency. Full regression gates executed (see Stage 10 report).
+- Documentation: `docs/ANDROID_ARCHITECTURE.md`, `docs/ANDROID_BUILD_GUIDE.md`, `docs/MONETIZATION_ARCHITECTURE.md`, `docs/ROBOKASSA_INTEGRATION.md`, `docs/YANDEX_ADS_INTEGRATION.md`, `docs/STAGE_10_FINAL_REPORT.md`, and roadmap/architecture/security updates.
 
-## Stage 08: Save & Archive Engine
+**Documented blockers / not verified (external or environment):**
+- No native `android/` project/toolchain/SDK/device/emulator in this environment: `cap add/sync android`, Gradle debug/release builds, APK/AAB signing/device tests **not executed**.
+- Yandex Mobile Ads: no native Android SDK/plugin build on device and no real/production ad unit IDs or account configuration; demo/production IDs not fabricated. Device behavior not verified.
+- Robokassa: no deployable/authenticated backend, no merchant credentials, no live/test endpoint deployment — **server-authoritative processing implemented as reference logic/contract and tests only**; production integration blocked pending secure backend and credentials.
+- Google Play distribution/payment policy: no Play Console enrollment/eligibility/approval verified. EEA alternative billing and other Play modes are **safely gated/architecturally prepared**, not claimed approved or enabled.
 
-- IndexedDB persistence wiring (`src/services/persistence/indexedDB.ts`).
-- Save slots, named saves, archives.
-- Autosave and restore flow, save/load UI.
-
----
-
-## Stage 09: Rendering Engine / World View
-
-- Three.js world view (scenes, cameras, materials, lighting) driven by simulation state.
-- Empire visualisation, region rendering, interactive camera.
-- Rendering ↔ simulation boundary hardening (render-only guarantee).
-
----
-
-## Stage 10: Android Native Integration & Monetization
-
-- Android SDK setup and native project generation (`npx cap add android`).
-- Google Play Billing integration.
-- Google AdMob integration.
-- Release build configuration for Google Play.
+Google Play payment policy requirements are respected/documented without presenting Google Play Billing as the owner’s selected primary provider.
 
 ---
 
-## Stage 11+: Polish & Commercial Release
+## Stage 11+: Polish & Commercial Release (next — pending user approval)
 
-- Balance pass, performance tuning, accessibility.
-- Localization, store assets, privacy policy, age rating.
-- Play Store submission preparation.
+- Resolve Stage 10 external blockers: Android toolchain/project generation and verified builds, native Yandex Ads SDK/plugin validation on devices, secure Robokassa backend deployment/credentials/testing, distribution-channel decision and policy-compliant payment enablement (including any required Play enrollment/reporting only where eligible and approved).
+- Balance pass, performance tuning, accessibility, localization.
+- Store assets, privacy/consent disclosures as required, age rating, release signing and submission preparation (channel-dependent).
+- Additional features only with explicit approval.
 
 ---
 
 ## Rules (all stages)
 
-- No monetization before gameplay foundations exist.
-- No production deployment.
-- No secrets or credentials committed.
+- Preserve owner-selected monetization: **Yandex Ads** (advertising) and **Robokassa** (purchases), with **server-authoritative payment verification** and distribution-specific policy gating.
+- **No secrets or credentials in the client/repository.** No fabricated production IDs, merchant secrets, keys, or enrollments.
+- Gameplay correctness, payment correctness, security, Android stability, and reproducible builds take priority over superficial completion.
+- No production deployment claims without verification.
 - Strict TypeScript; rendering and simulation independent.
-- Each stage ends with a verified build, passing type checks, lint and tests, plus updated documentation.
+- Each stage ends with verified checks (as available), honest reporting, passing required quality gates, and updated documentation. Stop after stage completion and wait for explicit approval before proceeding.

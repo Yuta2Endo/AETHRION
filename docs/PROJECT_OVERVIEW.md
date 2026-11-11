@@ -1,9 +1,9 @@
 # AETHRION — Project Overview
 
 **Project:** AETHRION  
-**Stage:** 02 — Game Core & Simulation Foundation  
-**Mode:** GREENFIELD — Build from scratch  
-**Platform:** Android (Capacitor)  
+**Stage:** 10 — Android Native Integration & Monetization (implemented with documented external blockers)  
+**Mode:** GREENFIELD — Build from scratch (evolved through staged implementation)  
+**Platform:** Web + Android target (Capacitor)  
 **Genre:** Hybrid Empire Simulator  
 **Visual Style:** Premium Neon Sci-Fi  
 **Brand:** AETHRION  
@@ -41,7 +41,13 @@ Acceptance criteria:
 
 Stage 02 turned the foundation into a functional simulation backbone: a real tick loop, a simulated in-game clock, a typed game state, baseline World and Economy engines, their integration, and a live Empire Dashboard — with no gameplay systems from later stages pulled forward.
 
-See `docs/STAGE_02_FINAL_REPORT.md`.
+### Stages 03–09 (complete)
+
+Corporation/Employee, Technology/Production, City, Events/Competitor AI, Performance/Web Workers, Save & Archive, and Rendering/World View systems were implemented incrementally with deterministic, test-backed simulation behavior and documented architecture.
+
+### Stage 10 — Android Native Integration & Monetization (completed with blockers)
+
+Android/Capacitor integration, lifecycle and mobile rendering readiness, and owner-selected monetization architecture were implemented in-repo: **Yandex Ads** (rewarded-first, verified completion, idempotent rewards) and **Robokassa** (server-authoritative, signature-verified, idempotent payment processing) with distribution/payment policy gating. Real device/SDK/credential/backend/enrollment-dependent steps are documented as blockers (no fabricated IDs, secrets, or approvals). See `docs/STAGE_10_FINAL_REPORT.md`.
 
 ## 3. Target Technology Stack
 
@@ -62,7 +68,7 @@ See `docs/STAGE_02_FINAL_REPORT.md`.
 | Mobile | Capacitor | Android native container |
 | Linting | ESLint (flat config) | Code quality |
 
-Android integrations planned for later stages: Google Play Billing, Google AdMob.
+Android/monetization (owner-selected): **Yandex Mobile Ads** (advertising) and **Robokassa** (purchases) with server-authoritative payment verification and distribution-specific policy gating. Google Play payment policy requirements are respected/documented where applicable without presenting Google Play Billing as the owner’s preferred primary provider.
 
 ## 4. Directory Structure (src/)
 
@@ -90,6 +96,6 @@ src/
 - Document important interfaces.
 - Avoid circular dependencies.
 - No fake gameplay functionality.
-- No monetization (billing/ads) before gameplay foundations exist.
-- No production deployment.
+- Preserve owner-selected monetization decisions and security: **Yandex Ads** and **Robokassa** (server-authoritative, no client secrets), with policy-compliant distribution gating.
+- No production deployment claims without verification.
 - No secrets or credentials committed.
